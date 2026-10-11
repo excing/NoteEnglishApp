@@ -5,6 +5,7 @@ import 'package:note_english_flutter/application/editorial/diary_editorial_cubit
 import 'package:note_english_flutter/application/settings/ai_settings_cubit.dart';
 import 'package:note_english_flutter/app/service_locator.dart';
 import 'package:note_english_flutter/core/theme/app_theme_tokens.dart';
+import 'package:note_english_flutter/domain/models/config/ai_profile_config.dart';
 import 'package:note_english_flutter/domain/models/diary/diary_entry.dart';
 import 'package:note_english_flutter/domain/models/diary/diary_metadata.dart';
 import 'package:note_english_flutter/domain/models/diary/weather_condition.dart';
@@ -27,7 +28,10 @@ Future<void> startNoteEnglishApp() async {
   // 初始化服务定位器与依赖注入 (Single Source of Truth)
   await setupServiceLocator();
 
-  // 恢复持久化随笔：从仓储中检索最新一篇笔记；若全新环境无历史则初始化初次体验草稿
+  // 恢复持久化配置与随笔 (保证应用启动后设置与内容均为同步可用)
+  final configRepo = sl<IAiConfigRepository>();
+  final initialConfig = await configRepo.getConfig();
+
   final diaryRepo = sl<IDiaryRepository>();
   final existingEntries = await diaryRepo.getAllEntries();
   final DiaryEntry initialEntry;
@@ -47,15 +51,20 @@ Future<void> startNoteEnglishApp() async {
     await diaryRepo.saveEntry(initialEntry);
   }
 
-  runApp(NoteEnglishApp(initialEntry: initialEntry));
+  runApp(NoteEnglishApp(
+    initialEntry: initialEntry,
+    initialConfig: initialConfig,
+  ));
 }
 
 class NoteEnglishApp extends StatelessWidget {
   final DiaryEntry initialEntry;
+  final AiProfileConfig initialConfig;
 
   const NoteEnglishApp({
     super.key,
     required this.initialEntry,
+    this.initialConfig = const AiProfileConfig(),
   });
 
   @override
@@ -72,9 +81,11 @@ class NoteEnglishApp extends StatelessWidget {
           ),
         ),
         BlocProvider<AiSettingsCubit>(
+          lazy: false,
           create: (_) => AiSettingsCubit(
             configRepository: sl<IAiConfigRepository>(),
             aiGateway: sl(),
+            initialConfig: initialConfig,
           ),
         ),
       ],

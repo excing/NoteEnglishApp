@@ -16,6 +16,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
   late TextEditingController _baseUrlCtrl;
   late TextEditingController _apiKeyCtrl;
   late TextEditingController _promptCtrl;
+  late TextEditingController _modelCtrl;
   String _selectedModel = 'gpt-4o';
 
   @override
@@ -25,7 +26,28 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
     _baseUrlCtrl = TextEditingController(text: cfg.baseUrl);
     _apiKeyCtrl = TextEditingController(text: cfg.apiKey);
     _promptCtrl = TextEditingController(text: cfg.customSystemPrompt);
+    _modelCtrl = TextEditingController(text: cfg.selectedModel);
     _selectedModel = cfg.selectedModel;
+  }
+
+  void _syncWithConfig(AiProfileConfig cfg) {
+    if (_baseUrlCtrl.text != cfg.baseUrl) {
+      _baseUrlCtrl.text = cfg.baseUrl;
+    }
+    if (_apiKeyCtrl.text != cfg.apiKey) {
+      _apiKeyCtrl.text = cfg.apiKey;
+    }
+    if (_promptCtrl.text != cfg.customSystemPrompt) {
+      _promptCtrl.text = cfg.customSystemPrompt;
+    }
+    if (_modelCtrl.text != cfg.selectedModel) {
+      _modelCtrl.text = cfg.selectedModel;
+    }
+    if (_selectedModel != cfg.selectedModel) {
+      setState(() {
+        _selectedModel = cfg.selectedModel;
+      });
+    }
   }
 
   @override
@@ -33,6 +55,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
     _baseUrlCtrl.dispose();
     _apiKeyCtrl.dispose();
     _promptCtrl.dispose();
+    _modelCtrl.dispose();
     super.dispose();
   }
 
@@ -42,6 +65,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
 
     return BlocConsumer<AiSettingsCubit, AiSettingsState>(
       listener: (context, state) {
+        _syncWithConfig(state.config);
         if (state.errorMessage != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -136,13 +160,16 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
                                 }).toList(),
                                 onChanged: (val) {
                                   if (val != null) {
-                                    setState(() => _selectedModel = val);
+                                    setState(() {
+                                      _selectedModel = val;
+                                      _modelCtrl.text = val;
+                                    });
                                   }
                                 },
                               )
                             : _buildTextField(
                                 label: '模型名称',
-                                controller: TextEditingController(text: _selectedModel),
+                                controller: _modelCtrl,
                                 hint: '例如: gpt-4o',
                                 tokens: tokens,
                                 onChanged: (v) => _selectedModel = v,
@@ -218,10 +245,13 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
                       ElevatedButton(
                         key: const ValueKey('save_settings_button'),
                         onPressed: () {
+                          final modelToSave = _modelCtrl.text.trim().isNotEmpty
+                              ? _modelCtrl.text.trim()
+                              : _selectedModel.trim();
                           final updated = state.config.copyWith(
                             baseUrl: _baseUrlCtrl.text.trim(),
                             apiKey: _apiKeyCtrl.text.trim(),
-                            selectedModel: _selectedModel.trim(),
+                            selectedModel: modelToSave,
                             customSystemPrompt: _promptCtrl.text.trim(),
                           );
                           context.read<AiSettingsCubit>().saveConfig(updated);

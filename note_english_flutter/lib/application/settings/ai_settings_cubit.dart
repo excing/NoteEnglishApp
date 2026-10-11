@@ -61,11 +61,10 @@ class AiSettingsCubit extends Cubit<AiSettingsState> {
   AiSettingsCubit({
     required IAiConfigRepository configRepository,
     required IAiGateway aiGateway,
+    AiProfileConfig? initialConfig,
   })  : _configRepository = configRepository,
         _aiGateway = aiGateway,
-        super(const AiSettingsState()) {
-    loadConfig();
-  }
+        super(AiSettingsState(config: initialConfig ?? const AiProfileConfig()));
 
   /// 加载当前存储的配置
   Future<void> loadConfig() async {
