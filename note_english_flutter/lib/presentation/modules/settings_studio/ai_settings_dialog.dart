@@ -257,6 +257,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
     ValueChanged<String>? onChanged,
   }) {
     return TextFormField(
+      key: ValueKey('setting_field_$label'),
       controller: controller,
       obscureText: obscureText,
       maxLines: maxLines,

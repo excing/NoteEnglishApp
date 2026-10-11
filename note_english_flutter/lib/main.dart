@@ -27,17 +27,25 @@ Future<void> startNoteEnglishApp() async {
   // 初始化服务定位器与依赖注入 (Single Source of Truth)
   await setupServiceLocator();
 
-  // 初始化默认随笔 (示例草稿)
-  final initialEntry = DiaryEntry.create(
-    content: '今晚加班到九点多，走出来的时候外面下着很大的雨。'
-        'Today work overtime until 9pm, outside is raining heavily. '
-        '整个人疲惫到了极点，但街角那家深烘焙手冲的香气，忽然让我心里踏实下来。',
-    metadata: DiaryMetadata(
-      recordedAt: DateTime.now(),
-      weather: WeatherCondition.rainy,
-      wordCount: 38,
-    ),
-  );
+  // 恢复持久化随笔：从仓储中检索最新一篇笔记；若全新环境无历史则初始化初次体验草稿
+  final diaryRepo = sl<IDiaryRepository>();
+  final existingEntries = await diaryRepo.getAllEntries();
+  final DiaryEntry initialEntry;
+  if (existingEntries.isNotEmpty) {
+    initialEntry = existingEntries.first;
+  } else {
+    initialEntry = DiaryEntry.create(
+      content: '今晚加班到九点多，走出来的时候外面下着很大的雨。'
+          'Today work overtime until 9pm, outside is raining heavily. '
+          '整个人疲惫到了极点，但街角那家深烘焙手冲的香气，忽然让我心里踏实下来。',
+      metadata: DiaryMetadata(
+        recordedAt: DateTime.now(),
+        weather: WeatherCondition.rainy,
+        wordCount: 38,
+      ),
+    );
+    await diaryRepo.saveEntry(initialEntry);
+  }
 
   runApp(NoteEnglishApp(initialEntry: initialEntry));
 }

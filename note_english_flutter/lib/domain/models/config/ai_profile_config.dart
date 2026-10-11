@@ -59,7 +59,7 @@ class AiProfileConfig extends Equatable {
       ),
       baseUrl: json['baseUrl'] as String? ?? 'https://api.openai.com/v1',
       apiKey: json['apiKey'] as String? ?? '',
-      selectedModel: json['selectedModel'] as String? ?? 'gpt-4o',
+      selectedModel: json['selectedModel'] as String? ?? '',
       customSystemPrompt: json['customSystemPrompt'] as String? ?? '',
       customHeaders: (json['customHeaders'] as Map<String, dynamic>?)?.map(
             (k, v) => MapEntry(k, v.toString()),
