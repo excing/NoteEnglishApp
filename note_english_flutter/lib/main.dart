@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:note_english_flutter/application/editorial/diary_editorial_cubit.dart';
+import 'package:note_english_flutter/application/inquiry/inquiry_cubit.dart';
 import 'package:note_english_flutter/application/settings/ai_settings_cubit.dart';
 import 'package:note_english_flutter/app/service_locator.dart';
 import 'package:note_english_flutter/core/theme/app_theme_tokens.dart';
@@ -78,6 +79,15 @@ class NoteEnglishApp extends StatelessWidget {
             configRepository: sl<IAiConfigRepository>(),
             aiGateway: sl(),
             initialEntry: initialEntry,
+          ),
+        ),
+        BlocProvider<InquiryCubit>(
+          create: (_) => InquiryCubit(
+            diaryRepository: sl<IDiaryRepository>(),
+            corpusRepository: sl<ICorpusRepository>(),
+            configRepository: sl<IAiConfigRepository>(),
+            aiGateway: sl(),
+            initialHistory: initialEntry.inquiryHistory,
           ),
         ),
         BlocProvider<AiSettingsCubit>(

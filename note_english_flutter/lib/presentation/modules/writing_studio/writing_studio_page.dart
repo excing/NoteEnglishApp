@@ -11,7 +11,6 @@ import 'package:note_english_flutter/core/theme/app_theme_tokens.dart';
 import 'package:note_english_flutter/domain/models/diary/diary_entry.dart';
 import 'package:note_english_flutter/domain/repositories/corpus_repository.dart';
 import 'package:note_english_flutter/presentation/common_widgets/weather_picker_badge.dart';
-import 'package:note_english_flutter/presentation/modules/contextual_inquiry/inquiry_bottom_sheet.dart';
 import 'package:note_english_flutter/presentation/modules/corpus_deck/corpus_deck_page.dart';
 import 'package:note_english_flutter/presentation/modules/editorial_inspector/editorial_inspector_view.dart';
 import 'package:note_english_flutter/presentation/modules/settings_studio/ai_settings_dialog.dart';
@@ -55,26 +54,6 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
       final min = dt.minute.toString().padLeft(2, '0');
       return '$m月$d日 · $h:$min';
     }
-  }
-
-  void _openInquirySheet(BuildContext context, DiaryEntry entry) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return BlocProvider(
-          create: (_) => InquiryCubit(
-            diaryRepository: sl(),
-            corpusRepository: sl(),
-            configRepository: sl(),
-            aiGateway: sl(),
-            initialHistory: entry.inquiryHistory,
-          ),
-          child: InquiryBottomSheet(currentEntry: entry),
-        );
-      },
-    );
   }
 
   @override
@@ -236,9 +215,8 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
                 : (state.entry.analysisResult != null
                     ? EditorialInspectorView(
                         analysisResult: state.entry.analysisResult!,
+                        currentEntry: state.entry,
                         silentCorpusCount: state.silentCorpusCount,
-                        onStartInquiry: () =>
-                            _openInquirySheet(context, state.entry),
                       )
                     : _buildEmptyEditorialPlaceholder(tokens)),
           ),
@@ -273,15 +251,15 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
                   borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                 ),
                 builder: (ctx) {
-                  return SizedBox(
-                    height: MediaQuery.of(context).size.height * 0.88,
-                    child: EditorialInspectorView(
-                      analysisResult: state.entry.analysisResult!,
-                      silentCorpusCount: state.silentCorpusCount,
-                      onStartInquiry: () {
-                        Navigator.of(ctx).pop();
-                        _openInquirySheet(context, state.entry);
-                      },
+                  return BlocProvider.value(
+                    value: context.read<InquiryCubit>(),
+                    child: SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.88,
+                      child: EditorialInspectorView(
+                        analysisResult: state.entry.analysisResult!,
+                        currentEntry: state.entry,
+                        silentCorpusCount: state.silentCorpusCount,
+                      ),
                     ),
                   );
                 },

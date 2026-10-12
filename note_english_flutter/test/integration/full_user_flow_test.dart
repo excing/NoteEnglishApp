@@ -162,7 +162,7 @@ void main() {
 
     expect(find.text('原文风格的英文版本 (保留你的本真口吻)'), findsOneWidget);
 
-    expect(find.textContaining('思维桥梁'), findsOneWidget);
+    expect(find.text('思维桥梁 (Mindset Bridge) 与进阶版本'), findsOneWidget);
     expect(find.textContaining('it was pouring rain outside'), findsOneWidget);
 
     expect(find.textContaining('地道英文表达的进阶版本'), findsOneWidget);
@@ -171,32 +171,26 @@ void main() {
     // 验证自动语料入库反馈微徽章
     expect(find.textContaining('已自动将 1 条核心生动表达收录进专属语料库'), findsOneWidget);
 
-    // 6. 点击“向主编追问”
-    await tester.tap(find.text('向主编追问').first);
-    await tester.pumpAndSettle();
-
-    // 验证追问面板弹出
+    // 6. 新交互验证：无需单独进入界面，追问输入框直接在 AI 梳理界面下方置底
+    expect(find.byKey(const ValueKey('inquiry_input_field')), findsOneWidget);
     expect(find.text('主编追问与语感切磋'), findsOneWidget);
 
-    // 输入追问内容
-    final inquiryInput = find.byType(TextField).last;
-    await tester.enterText(inquiryInput, '为什么用 clock out 比 work overtime 更好？');
+    // 直接在置底输入框输入追问内容
+    await tester.enterText(
+        find.byKey(const ValueKey('inquiry_input_field')),
+        '为什么用 clock out 比 work overtime 更好？');
     await tester.pumpAndSettle();
 
-    // 点击发送
-    await tester.tap(find.byIcon(Icons.arrow_upward));
+    // 点击置底发送按钮
+    await tester.tap(find.byKey(const ValueKey('send_inquiry_button')));
     await tester.pump();
     await tester.pumpAndSettle();
 
-    // 验证追问结构化结果呈现
+    // 验证追问结构化结果直接呈现在梳理视窗中 (无需单独弹窗或关闭操作)
     expect(find.textContaining('clock out 是极为地道的职场口语动词'), findsOneWidget);
     expect(find.textContaining('核心重点:'), findsOneWidget);
     expect(find.textContaining('延伸应用示例：'), findsOneWidget);
     expect(find.textContaining('I usually clock out at 6 PM sharp.'), findsOneWidget);
-
-    // 关闭追问弹窗
-    await tester.tap(find.byIcon(Icons.close));
-    await tester.pumpAndSettle();
 
     // 7. 进入专属语料库页面
     await tester.tap(find.byKey(const ValueKey('corpus_deck_button')));
