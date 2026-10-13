@@ -1,12 +1,14 @@
 import 'package:get_it/get_it.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:note_english_flutter/domain/gateways/ai_gateway.dart';
+import 'package:note_english_flutter/domain/gateways/weather_gateway.dart';
 import 'package:note_english_flutter/domain/repositories/ai_config_repository.dart';
 import 'package:note_english_flutter/domain/repositories/corpus_repository.dart';
 import 'package:note_english_flutter/domain/repositories/diary_repository.dart';
 import 'package:note_english_flutter/domain/services/corpus_ingestion_service.dart';
 import 'package:note_english_flutter/domain/services/prompt_template_engine.dart';
 import 'package:note_english_flutter/infrastructure/adapters/ai/openai_compatible_ai_gateway.dart';
+import 'package:note_english_flutter/infrastructure/adapters/weather/open_meteo_weather_gateway.dart';
 import 'package:note_english_flutter/infrastructure/repositories/local_corpus_repository.dart';
 import 'package:note_english_flutter/infrastructure/repositories/local_diary_repository.dart';
 import 'package:note_english_flutter/infrastructure/repositories/secure_ai_config_repository.dart';
@@ -26,6 +28,7 @@ Future<void> setupServiceLocator({IStorageEngine? customStorageEngine}) async {
 
   // 2. 基础设施网关与适配器
   sl.registerLazySingleton<IAiGateway>(() => OpenAiCompatibleAiGateway());
+  sl.registerLazySingleton<IWeatherGateway>(() => OpenMeteoWeatherGateway());
 
   // 3. 持久化仓储层 (全平台文件原子刷盘保障)
   sl.registerLazySingleton<IDiaryRepository>(

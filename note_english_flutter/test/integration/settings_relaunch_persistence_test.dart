@@ -16,7 +16,10 @@ import 'package:note_english_flutter/infrastructure/repositories/local_diary_rep
 import 'package:note_english_flutter/infrastructure/repositories/secure_ai_config_repository.dart';
 import 'package:note_english_flutter/main.dart';
 
+import 'package:note_english_flutter/domain/gateways/weather_gateway.dart';
+
 class MockAiGateway extends Mock implements IAiGateway {}
+class MockWeatherGateway extends Mock implements IWeatherGateway {}
 
 void main() {
   late MockAiGateway mockAiGateway;
@@ -40,6 +43,7 @@ void main() {
     sl.registerLazySingleton<ICorpusRepository>(() => corpusRepo);
     sl.registerLazySingleton<IAiConfigRepository>(() => configRepo);
     sl.registerLazySingleton<IAiGateway>(() => mockAiGateway);
+    sl.registerLazySingleton<IWeatherGateway>(() => MockWeatherGateway());
   });
 
   testWidgets('Bug Regression: Settings should immediately show persisted values on FIRST launch after restart',

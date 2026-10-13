@@ -15,10 +15,14 @@ import 'package:note_english_flutter/domain/repositories/diary_repository.dart';
 import 'package:note_english_flutter/domain/services/corpus_ingestion_service.dart';
 import 'package:note_english_flutter/domain/services/prompt_template_engine.dart';
 
+import 'package:note_english_flutter/domain/gateways/weather_gateway.dart';
+import 'package:note_english_flutter/domain/models/weather/current_weather_report.dart';
+
 class MockDiaryRepository extends Mock implements IDiaryRepository {}
 class MockCorpusRepository extends Mock implements ICorpusRepository {}
 class MockAiConfigRepository extends Mock implements IAiConfigRepository {}
 class MockAiGateway extends Mock implements IAiGateway {}
+class MockWeatherGateway extends Mock implements IWeatherGateway {}
 
 void main() {
   late MockDiaryRepository diaryRepo;
@@ -176,6 +180,44 @@ void main() {
             .having((s) => s.entry.content, 'content', 'Brand new loaded note.')
             .having((s) => s.status, 'status', DiaryAnalysisStatus.draft),
       ],
+    );
+
+    blocTest<DiaryEditorialCubit, DiaryEditorialState>(
+      'should fetch and apply realtime weather from weather gateway',
+      setUp: () {
+        when(() => diaryRepo.saveEntry(any())).thenAnswer((_) async {});
+      },
+      build: () {
+        final weatherGateway = MockWeatherGateway();
+        when(() => weatherGateway.fetchWeatherByCity('Shanghai')).thenAnswer(
+          (_) async => CurrentWeatherReport(
+            condition: WeatherCondition.sunny,
+            temperature: 24.5,
+            weatherCode: 0,
+            locationName: 'Shanghai',
+            latitude: 31.23,
+            longitude: 121.47,
+            fetchedAt: DateTime.now(),
+          ),
+        );
+        return DiaryEditorialCubit(
+          diaryRepository: diaryRepo,
+          corpusRepository: corpusRepo,
+          configRepository: configRepo,
+          aiGateway: aiGateway,
+          weatherGateway: weatherGateway,
+          initialEntry: initialEntry,
+        );
+      },
+      act: (cubit) => cubit.fetchAndApplyRealtimeWeather(cityName: 'Shanghai'),
+      expect: () => [
+        isA<DiaryEditorialState>()
+            .having((s) => s.entry.metadata.weather, 'weather', WeatherCondition.sunny)
+            .having((s) => s.entry.metadata.location, 'location', 'Shanghai'),
+      ],
+      verify: (_) {
+        verify(() => diaryRepo.saveEntry(any())).called(1);
+      },
     );
   });
 }

@@ -8,6 +8,8 @@ import 'package:note_english_flutter/domain/models/diary/weather_condition.dart'
 import 'package:note_english_flutter/domain/repositories/ai_config_repository.dart';
 import 'package:note_english_flutter/domain/repositories/corpus_repository.dart';
 import 'package:note_english_flutter/domain/repositories/diary_repository.dart';
+import 'package:note_english_flutter/domain/gateways/weather_gateway.dart';
+import 'package:note_english_flutter/domain/models/weather/current_weather_report.dart';
 import 'package:note_english_flutter/domain/services/corpus_ingestion_service.dart';
 import 'package:note_english_flutter/domain/services/prompt_template_engine.dart';
 
@@ -49,6 +51,7 @@ class DiaryEditorialCubit extends Cubit<DiaryEditorialState> {
   final ICorpusRepository _corpusRepository;
   final IAiConfigRepository _configRepository;
   final IAiGateway _aiGateway;
+  final IWeatherGateway? _weatherGateway;
   final PromptTemplateEngine _promptEngine;
   final CorpusIngestionService _corpusService;
 
@@ -57,6 +60,7 @@ class DiaryEditorialCubit extends Cubit<DiaryEditorialState> {
     required ICorpusRepository corpusRepository,
     required IAiConfigRepository configRepository,
     required IAiGateway aiGateway,
+    IWeatherGateway? weatherGateway,
     PromptTemplateEngine promptEngine = const PromptTemplateEngine(),
     CorpusIngestionService corpusService = const CorpusIngestionService(),
     required DiaryEntry initialEntry,
@@ -64,6 +68,7 @@ class DiaryEditorialCubit extends Cubit<DiaryEditorialState> {
         _corpusRepository = corpusRepository,
         _configRepository = configRepository,
         _aiGateway = aiGateway,
+        _weatherGateway = weatherGateway,
         _promptEngine = promptEngine,
         _corpusService = corpusService,
         super(DiaryEditorialState(
@@ -98,6 +103,29 @@ class DiaryEditorialCubit extends Cubit<DiaryEditorialState> {
     );
     emit(state.copyWith(entry: updated));
     _diaryRepository.saveEntry(updated);
+  }
+
+  /// 获取并自动应用真实实时天气 (Open-Meteo)
+  Future<void> fetchAndApplyRealtimeWeather({String? cityName}) async {
+    if (_weatherGateway == null) return;
+    try {
+      final CurrentWeatherReport report;
+      if (cityName != null && cityName.trim().isNotEmpty) {
+        report = await _weatherGateway.fetchWeatherByCity(cityName);
+      } else {
+        report = await _weatherGateway.fetchWeatherAuto();
+      }
+      final updated = state.entry.copyWith(
+        metadata: state.entry.metadata.copyWith(
+          weather: report.condition,
+          location: report.locationName,
+        ),
+      );
+      emit(state.copyWith(entry: updated, errorMessage: null));
+      await _diaryRepository.saveEntry(updated);
+    } catch (e) {
+      emit(state.copyWith(errorMessage: '获取实时天气失败: $e'));
+    }
   }
 
   /// 呼叫主编：发起 AI 梳理

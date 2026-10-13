@@ -182,8 +182,19 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
                   const SizedBox(width: 8),
                   WeatherPickerBadge(
                     currentWeather: entry.metadata.weather,
+                    location: entry.metadata.location,
                     onWeatherChanged: (w) {
                       context.read<DiaryEditorialCubit>().updateWeather(w);
+                    },
+                    onAutoFetchWeather: () {
+                      context
+                          .read<DiaryEditorialCubit>()
+                          .fetchAndApplyRealtimeWeather();
+                    },
+                    onCityWeatherRequested: (cityName) {
+                      context
+                          .read<DiaryEditorialCubit>()
+                          .fetchAndApplyRealtimeWeather(cityName: cityName);
                     },
                   ),
                 ],

@@ -7,6 +7,7 @@ import 'package:note_english_flutter/application/inquiry/inquiry_cubit.dart';
 import 'package:note_english_flutter/application/settings/ai_settings_cubit.dart';
 import 'package:note_english_flutter/app/service_locator.dart';
 import 'package:note_english_flutter/core/theme/app_theme_tokens.dart';
+import 'package:note_english_flutter/domain/gateways/weather_gateway.dart';
 import 'package:note_english_flutter/domain/models/config/ai_profile_config.dart';
 import 'package:note_english_flutter/domain/models/diary/diary_entry.dart';
 import 'package:note_english_flutter/domain/models/diary/diary_metadata.dart';
@@ -79,6 +80,7 @@ class NoteEnglishApp extends StatelessWidget {
             corpusRepository: sl<ICorpusRepository>(),
             configRepository: sl<IAiConfigRepository>(),
             aiGateway: sl(),
+            weatherGateway: sl<IWeatherGateway>(),
             initialEntry: initialEntry,
           ),
         ),
