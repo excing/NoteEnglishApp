@@ -185,6 +185,8 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
           child: Scaffold(
             backgroundColor: tokens.canvas,
             drawer: DiaryManagementDrawer(
+              onOpenCorpus: () => _openCorpus(context),
+              onOpenSettings: () => _openSettings(context),
               onSelectEntry: (selected) {
                 context.read<DiaryEditorialCubit>().loadEntry(selected);
                 context.read<InquiryCubit>().resetHistory(selected.inquiryHistory);
@@ -293,83 +295,6 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
                     _focusNode.requestFocus();
                   },
                 ),
-                // 语料库入口
-                if (screenWidth >= 640)
-                  TextButton.icon(
-                    key: const ValueKey('corpus_deck_button'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: tokens.textPrimary,
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                    ),
-                    icon: const Icon(Icons.collections_bookmark_outlined, size: 18),
-                    label: const Text('语料库', style: TextStyle(fontSize: 13)),
-                    onPressed: () => _openCorpus(context),
-                  )
-                else if (screenWidth >= 340)
-                  IconButton(
-                    key: const ValueKey('corpus_deck_button'),
-                    icon: const Icon(Icons.collections_bookmark_outlined, size: 20),
-                    tooltip: '语料库',
-                    onPressed: () => _openCorpus(context),
-                  ),
-                // 设置入口
-                if (screenWidth >= 640)
-                  TextButton.icon(
-                    key: const ValueKey('ai_settings_button'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: tokens.textPrimary,
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                    ),
-                    icon: const Icon(Icons.tune, size: 18),
-                    label: const Text('设置', style: TextStyle(fontSize: 13)),
-                    onPressed: () => _openSettings(context),
-                  )
-                else if (screenWidth >= 340)
-                  IconButton(
-                    key: const ValueKey('ai_settings_button'),
-                    icon: const Icon(Icons.tune, size: 20),
-                    tooltip: '设置',
-                    onPressed: () => _openSettings(context),
-                  ),
-                // 极小屏幕 (< 340px) 紧凑折叠为更多菜单
-                if (screenWidth < 340)
-                  PopupMenuButton<String>(
-                    key: const ValueKey('appbar_more_menu'),
-                    icon: const Icon(Icons.more_vert, size: 20),
-                    tooltip: '更多功能',
-                    onSelected: (val) {
-                      if (val == 'corpus') {
-                        _openCorpus(context);
-                      } else if (val == 'settings') {
-                        _openSettings(context);
-                      }
-                    },
-                    itemBuilder: (ctx) => [
-                      PopupMenuItem(
-                        key: const ValueKey('corpus_deck_button'),
-                        value: 'corpus',
-                        child: Row(
-                          children: [
-                            Icon(Icons.collections_bookmark_outlined,
-                                size: 18, color: tokens.textPrimary),
-                            const SizedBox(width: 8),
-                            const Text('语料库'),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        key: const ValueKey('ai_settings_button'),
-                        value: 'settings',
-                        child: Row(
-                          children: [
-                            Icon(Icons.tune, size: 18, color: tokens.textPrimary),
-                            const SizedBox(width: 8),
-                            const Text('设置'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
                 const SizedBox(width: 4),
               ],
             ),

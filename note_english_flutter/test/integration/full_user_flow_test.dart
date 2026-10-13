@@ -195,7 +195,9 @@ void main() {
     expect(find.textContaining('延伸应用示例：'), findsOneWidget);
     expect(find.textContaining('I usually clock out at 6 PM sharp.'), findsOneWidget);
 
-    // 7. 进入专属语料库页面
+    // 7. 进入专属语料库页面 (从侧边栏入口进入)
+    await tester.tap(find.byKey(const ValueKey('diary_drawer_button')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('corpus_deck_button')));
     await tester.pumpAndSettle();
 

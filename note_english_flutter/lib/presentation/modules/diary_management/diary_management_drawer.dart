@@ -11,12 +11,16 @@ class DiaryManagementDrawer extends StatefulWidget {
   final void Function(DiaryEntry entry)? onSelectEntry;
   final void Function(DiaryEntry entry)? onEntryCreated;
   final void Function(String deletedEntryId)? onEntryDeleted;
+  final VoidCallback? onOpenCorpus;
+  final VoidCallback? onOpenSettings;
 
   const DiaryManagementDrawer({
     super.key,
     this.onSelectEntry,
     this.onEntryCreated,
     this.onEntryDeleted,
+    this.onOpenCorpus,
+    this.onOpenSettings,
   });
 
   @override
@@ -242,6 +246,89 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
                             );
                           },
                         ),
+                ),
+
+                // 底部常驻功能区：语料库 与 设置
+                Divider(color: tokens.cardBorder, height: 1),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Row(
+                    children: [
+                      // 语料库入口
+                      Expanded(
+                        child: InkWell(
+                          key: const ValueKey('corpus_deck_button'),
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            widget.onOpenCorpus?.call();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: tokens.card,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: tokens.cardBorder),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.collections_bookmark_outlined,
+                                    size: 18, color: tokens.terracotta),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '语料库',
+                                  style: TextStyle(
+                                    color: tokens.textPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // 主编设置入口
+                      Expanded(
+                        child: InkWell(
+                          key: const ValueKey('ai_settings_button'),
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            widget.onOpenSettings?.call();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: tokens.card,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: tokens.cardBorder),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.tune,
+                                    size: 18, color: tokens.textPrimary),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '主编设置',
+                                  style: TextStyle(
+                                    color: tokens.textPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             );

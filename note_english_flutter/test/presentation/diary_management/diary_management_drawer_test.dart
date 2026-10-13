@@ -55,6 +55,8 @@ void main() {
     required DiaryListCubit cubit,
     void Function(DiaryEntry)? onSelect,
     void Function(DiaryEntry)? onCreated,
+    VoidCallback? onOpenCorpus,
+    VoidCallback? onOpenSettings,
   }) {
     return MaterialApp(
       theme: AppThemeTokens.createThemeData(isDark: false),
@@ -64,6 +66,8 @@ void main() {
           child: DiaryManagementDrawer(
             onSelectEntry: onSelect,
             onEntryCreated: onCreated,
+            onOpenCorpus: onOpenCorpus,
+            onOpenSettings: onOpenSettings,
           ),
         ),
         body: Builder(
@@ -180,6 +184,41 @@ void main() {
 
       verify(() => diaryRepo.saveEntry(any())).called(1);
       expect(created, isNotNull);
+    });
+
+    testWidgets('clicking corpus and settings footer buttons invokes callbacks',
+        (tester) async {
+      final cubit = DiaryListCubit(
+        diaryRepository: diaryRepo,
+        initialActiveEntryId: entry2.id,
+      );
+      bool corpusOpened = false;
+      bool settingsOpened = false;
+
+      await tester.pumpWidget(buildTestWidget(
+        cubit: cubit,
+        onOpenCorpus: () => corpusOpened = true,
+        onOpenSettings: () => settingsOpened = true,
+      ));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // 验证底部常驻入口渲染
+      expect(find.byKey(const ValueKey('corpus_deck_button')), findsOneWidget);
+      expect(find.byKey(const ValueKey('ai_settings_button')), findsOneWidget);
+
+      // 点击语料库
+      await tester.tap(find.byKey(const ValueKey('corpus_deck_button')));
+      await tester.pumpAndSettle();
+      expect(corpusOpened, isTrue);
+
+      // 重新打开抽屉并点击设置
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('ai_settings_button')));
+      await tester.pumpAndSettle();
+      expect(settingsOpened, isTrue);
     });
   });
 }

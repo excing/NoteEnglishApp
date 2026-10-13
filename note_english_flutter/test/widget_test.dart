@@ -54,7 +54,8 @@ void main() {
 
     // 验证在 220px 下降级为紧凑模式且无任何溢出崩溃
     expect(find.byKey(const ValueKey('call_editor_button')), findsOneWidget);
-    expect(find.byKey(const ValueKey('appbar_more_menu')), findsOneWidget);
+    expect(find.byKey(const ValueKey('quick_new_diary_button')), findsOneWidget);
+    expect(find.byKey(const ValueKey('diary_drawer_button')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
