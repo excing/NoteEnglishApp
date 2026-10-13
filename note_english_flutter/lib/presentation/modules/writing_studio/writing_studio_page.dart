@@ -11,6 +11,7 @@ import 'package:note_english_flutter/app/service_locator.dart';
 import 'package:note_english_flutter/core/theme/app_theme_tokens.dart';
 import 'package:note_english_flutter/domain/models/diary/diary_entry.dart';
 import 'package:note_english_flutter/domain/repositories/corpus_repository.dart';
+import 'package:note_english_flutter/presentation/common_widgets/collapsible_sidebar_pane.dart';
 import 'package:note_english_flutter/presentation/common_widgets/pane_resize_handle.dart';
 import 'package:note_english_flutter/presentation/common_widgets/weather_picker_badge.dart';
 import 'package:note_english_flutter/presentation/modules/corpus_deck/corpus_deck_page.dart';
@@ -89,8 +90,15 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
   /// 右边栏临时隐藏后，未松手往回拉的累计距离
   double _rightSidebarReversePull = 0.0;
 
+  /// 用户是否正处于左手柄拖拽中 (拖拽中动画时长为零以保证 60fps 实时跟手)
+  bool _isLeftDragging = false;
+
+  /// 用户是否正处于右手柄拖拽中
+  bool _isRightDragging = false;
+
   void _onLeftDragEnd() {
     setState(() {
+      _isLeftDragging = false;
       if (_isLeftSidebarTemporarilyCollapsed) {
         _isLeftSidebarOpen = false;
         _leftSidebarWidth = LayoutBreakpoints.leftSidebarDefaultWidth;
@@ -103,6 +111,7 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
 
   void _onRightDragEnd() {
     setState(() {
+      _isRightDragging = false;
       if (_isRightSidebarTemporarilyCollapsed) {
         _isAiSidebarOpen = false;
         _rightSidebarWidth = LayoutBreakpoints.rightSidebarDefaultWidth;
@@ -770,28 +779,33 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
 
     return Row(
       children: [
-        // 1. 左边栏 (笔记列表) - 独立全高显示，不被顶栏压制，支持快捷折叠与用户拖拽调宽
-        if (showLeftDrawer)
-          SizedBox(
-            width: effectiveLeftWidth,
-            child: Material(
-              color: tokens.canvas,
-              child: DiaryManagementDrawer(
-                isPermanent: true,
-                onOpenCorpus: () => _openCorpus(context),
-                onOpenSettings: () => _openSettings(context),
-                onSelectEntry: _handleSelectEntry,
-                onEntryCreated: _handleEntryCreated,
-                onEntryDeleted: _handleEntryDeleted,
-              ),
+        // 1. 左边栏 (笔记列表) - 独立全高滑入滑出，支持快捷折叠与用户拖拽调宽
+        CollapsibleSidebarPane(
+          isVisible: showLeftDrawer,
+          targetWidth: effectiveLeftWidth,
+          direction: SidebarSlideDirection.fromLeft,
+          duration: _isLeftDragging
+              ? Duration.zero
+              : const Duration(milliseconds: 280),
+          child: Material(
+            color: tokens.canvas,
+            child: DiaryManagementDrawer(
+              isPermanent: true,
+              onOpenCorpus: () => _openCorpus(context),
+              onOpenSettings: () => _openSettings(context),
+              onSelectEntry: _handleSelectEntry,
+              onEntryCreated: _handleEntryCreated,
+              onEntryDeleted: _handleEntryDeleted,
             ),
           ),
+        ),
         if (_isLeftSidebarOpen)
           PaneResizeHandle(
             key: const ValueKey('left_pane_resize_handle'),
             tooltip: '拖拽调整笔记列表宽度，双击恢复默认',
             onDelta: (delta) => _onLeftSidebarResize(delta, screenWidth),
             onReset: _resetLeftSidebarWidth,
+            onDragStart: () => setState(() => _isLeftDragging = true),
             onDragEnd: _onLeftDragEnd,
           ),
         // 2. 中间主区域 - 顶栏仅覆盖主区域，顶栏下方严格仅为主编辑区
@@ -821,7 +835,7 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
             ),
           ),
         ),
-        // 3. 右边栏 (主编梳理与追问视窗) - 独立全高显示，不被顶栏压制，支持手动拖拽调宽与随时收起
+        // 3. 右边栏 (主编梳理与追问视窗) - 独立全高滑入滑出，支持手动拖拽调宽与随时收起
         if (_isAiSidebarOpen)
           PaneResizeHandle(
             key: const ValueKey('right_pane_resize_handle'),
@@ -829,25 +843,30 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
             onDelta: (delta) =>
                 _onRightSidebarResize(delta, screenWidth, isDesktop: true),
             onReset: _resetRightSidebarWidth,
+            onDragStart: () => setState(() => _isRightDragging = true),
             onDragEnd: _onRightDragEnd,
           ),
-        if (showRightInspector)
-          SizedBox(
-            width: effectiveRightWidth,
-            child: Material(
-              color: tokens.canvas,
-              child: _buildRightAiSidebar(
-                context,
-                state,
-                tokens,
-              ),
+        CollapsibleSidebarPane(
+          isVisible: showRightInspector,
+          targetWidth: effectiveRightWidth,
+          direction: SidebarSlideDirection.fromRight,
+          duration: _isRightDragging
+              ? Duration.zero
+              : const Duration(milliseconds: 280),
+          child: Material(
+            color: tokens.canvas,
+            child: _buildRightAiSidebar(
+              context,
+              state,
+              tokens,
             ),
           ),
+        ),
       ],
     );
   }
 
-  /// 平板端布局：主区域带顶栏与抽屉，右边栏独立全高显示
+  /// 平板端布局：主区域带顶栏与抽屉，右边栏独立全高显示 (支持滑入滑出)
   Widget _buildTabletLayout(
     BuildContext context,
     DiaryEditorialState state,
@@ -904,7 +923,7 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
             ),
           ),
         ),
-        // 2. 右边栏 (主编梳理与追问视窗) - 独立全高显示，不被顶栏压制
+        // 2. 右边栏 (主编梳理与追问视窗) - 独立全高滑入滑出
         if (_isAiSidebarOpen)
           PaneResizeHandle(
             key: const ValueKey('right_pane_resize_handle'),
@@ -912,20 +931,25 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
             onDelta: (delta) =>
                 _onRightSidebarResize(delta, screenWidth, isDesktop: false),
             onReset: _resetRightSidebarWidth,
+            onDragStart: () => setState(() => _isRightDragging = true),
             onDragEnd: _onRightDragEnd,
           ),
-        if (showRightInspector)
-          SizedBox(
-            width: effectiveRightWidth,
-            child: Material(
-              color: tokens.canvas,
-              child: _buildRightAiSidebar(
-                context,
-                state,
-                tokens,
-              ),
+        CollapsibleSidebarPane(
+          isVisible: showRightInspector,
+          targetWidth: effectiveRightWidth,
+          direction: SidebarSlideDirection.fromRight,
+          duration: _isRightDragging
+              ? Duration.zero
+              : const Duration(milliseconds: 280),
+          child: Material(
+            color: tokens.canvas,
+            child: _buildRightAiSidebar(
+              context,
+              state,
+              tokens,
             ),
           ),
+        ),
       ],
     );
   }
