@@ -481,7 +481,7 @@ void main() {
       expect(compressedRightWidth, greaterThanOrEqualTo(200.0)); // 处于修改后的 200 最小限制范围内
     });
 
-    testWidgets('桌面尺寸下，左边栏独立于顶栏且全高展示，顶栏仅覆盖主区域与右边栏',
+    testWidgets('桌面尺寸下，左右边栏均独立于顶栏且全高展示，顶栏仅覆盖中间主区域',
         (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1280, 800);
       tester.view.devicePixelRatio = 1.0;
@@ -490,19 +490,33 @@ void main() {
       await tester.pumpWidget(NoteEnglishApp(initialEntry: testEntry));
       await tester.pumpAndSettle();
 
-      // 验证左边栏顶部坐标为 y = 0 (全高从顶部贯穿，不在 AppBar 下方)
+      // 1. 验证左边栏顶部坐标为 y = 0 (全高从顶部贯穿，不在 AppBar 下方)
       final drawerFinder = find.byType(DiaryManagementDrawer);
       expect(drawerFinder, findsOneWidget);
       final drawerTopLeft = tester.getTopLeft(drawerFinder);
       expect(drawerTopLeft.dy, equals(0.0));
       expect(drawerTopLeft.dx, equals(0.0));
 
-      // 验证顶栏 AppBar 的左侧起始 x 坐标大于 0 (即 AppBar 位于左边栏右侧，并未覆盖左边栏)
+      // 2. 点击呼叫主编，展开右边栏
+      await tester.tap(find.byKey(const ValueKey('call_editor_button')));
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      // 3. 验证右边栏顶部坐标为 y = 0 (独立全高，不在 AppBar 下方)
+      final inspectorFinder = find.byType(EditorialInspectorView);
+      expect(inspectorFinder, findsOneWidget);
+      final inspectorTopLeft = tester.getTopLeft(inspectorFinder);
+      expect(inspectorTopLeft.dy, equals(0.0));
+      expect(inspectorTopLeft.dx, greaterThan(0.0));
+
+      // 4. 验证顶栏 AppBar 严格居中，仅覆盖主区域 (左侧紧贴左手柄，右侧紧贴右手柄)
       final appBarFinder = find.byType(AppBar);
       expect(appBarFinder, findsOneWidget);
       final appBarTopLeft = tester.getTopLeft(appBarFinder);
-      expect(appBarTopLeft.dx, greaterThan(0.0));
-      expect(appBarTopLeft.dx, equals(tester.getSize(drawerFinder).width + 8.0)); // 包含 8px 手柄宽度
+      final appBarTopRight = tester.getTopRight(appBarFinder);
+
+      expect(appBarTopLeft.dx, equals(tester.getSize(drawerFinder).width + 8.0)); // 左手柄 8px
+      expect(appBarTopRight.dx, equals(inspectorTopLeft.dx - 8.0)); // 右手柄 8px
     });
   });
 }

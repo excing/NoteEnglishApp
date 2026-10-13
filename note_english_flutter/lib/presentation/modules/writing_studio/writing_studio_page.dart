@@ -543,11 +543,18 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
           },
         ),
       ),
-      title: Builder(
-        builder: (ctx) {
-          final respDate =
-              _formatResponsiveDate(entry.metadata.recordedAt, screenWidth);
+      title: LayoutBuilder(
+        builder: (ctx, constraints) {
+          final availableWidth = constraints.maxWidth;
+          // 若 Title 槽位可用宽度极窄 (< 120px，如极端拖拽压缩主区域至 210px 时)，省略日期文本，仅保留极简天气胶囊
+          final showDate = availableWidth >= 120;
+          final respDate = showDate
+              ? _formatResponsiveDate(entry.metadata.recordedAt, availableWidth)
+              : null;
+          final weatherMode = _resolveWeatherDisplayMode(availableWidth);
+
           return Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               if (respDate != null) ...[
                 Flexible(
@@ -563,28 +570,30 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
                 ),
                 const SizedBox(width: 4),
               ],
-              WeatherPickerBadge(
-                displayMode: _resolveWeatherDisplayMode(screenWidth),
-                currentWeather: entry.metadata.weather,
-                detailedWeather: entry.metadata.detailedWeather,
-                location: entry.metadata.location,
-                temperature: entry.metadata.temperature,
-                apparentTemperature: entry.metadata.apparentTemperature,
-                humidity: entry.metadata.humidity,
-                isDay: entry.metadata.isDay,
-                onWeatherChanged: (w) {
-                  context.read<DiaryEditorialCubit>().updateWeather(w);
-                },
-                onAutoFetchWeather: () {
-                  context
-                      .read<DiaryEditorialCubit>()
-                      .fetchAndApplyRealtimeWeather();
-                },
-                onCityWeatherRequested: (cityName) {
-                  context
-                      .read<DiaryEditorialCubit>()
-                      .fetchAndApplyRealtimeWeather(cityName: cityName);
-                },
+              Flexible(
+                child: WeatherPickerBadge(
+                  displayMode: weatherMode,
+                  currentWeather: entry.metadata.weather,
+                  detailedWeather: entry.metadata.detailedWeather,
+                  location: entry.metadata.location,
+                  temperature: entry.metadata.temperature,
+                  apparentTemperature: entry.metadata.apparentTemperature,
+                  humidity: entry.metadata.humidity,
+                  isDay: entry.metadata.isDay,
+                  onWeatherChanged: (w) {
+                    context.read<DiaryEditorialCubit>().updateWeather(w);
+                  },
+                  onAutoFetchWeather: () {
+                    context
+                        .read<DiaryEditorialCubit>()
+                        .fetchAndApplyRealtimeWeather();
+                  },
+                  onCityWeatherRequested: (cityName) {
+                    context
+                        .read<DiaryEditorialCubit>()
+                        .fetchAndApplyRealtimeWeather(cityName: cityName);
+                  },
+                ),
               ),
             ],
           );
@@ -693,34 +702,34 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
           },
           child: isDesktop
               ? _buildDesktopLayout(context, state, tokens, screenWidth)
-              : Scaffold(
-                  backgroundColor: tokens.canvas,
-                  drawer: DiaryManagementDrawer(
-                    isPermanent: false,
-                    onOpenCorpus: () => _openCorpus(context),
-                    onOpenSettings: () => _openSettings(context),
-                    onSelectEntry: _handleSelectEntry,
-                    onEntryCreated: _handleEntryCreated,
-                    onEntryDeleted: _handleEntryDeleted,
-                  ),
-                  appBar: _buildStudioAppBar(
-                    context: context,
-                    entry: entry,
-                    tokens: tokens,
-                    screenWidth: screenWidth,
-                    isDesktop: false,
-                    isMobile: isMobile,
-                  ),
-                  body: isTablet
-                      ? _buildTabletLayout(context, state, tokens, screenWidth)
-                      : _buildMobileLayout(context, state, tokens),
-                ),
+              : (isTablet
+                  ? _buildTabletLayout(context, state, tokens, screenWidth)
+                  : Scaffold(
+                      backgroundColor: tokens.canvas,
+                      drawer: DiaryManagementDrawer(
+                        isPermanent: false,
+                        onOpenCorpus: () => _openCorpus(context),
+                        onOpenSettings: () => _openSettings(context),
+                        onSelectEntry: _handleSelectEntry,
+                        onEntryCreated: _handleEntryCreated,
+                        onEntryDeleted: _handleEntryDeleted,
+                      ),
+                      appBar: _buildStudioAppBar(
+                        context: context,
+                        entry: entry,
+                        tokens: tokens,
+                        screenWidth: screenWidth,
+                        isDesktop: false,
+                        isMobile: isMobile,
+                      ),
+                      body: _buildMobileLayout(context, state, tokens),
+                    )),
         );
       },
     );
   }
 
-  /// 桌面端布局：左边栏独立全高显示，顶栏移至右侧工作台顶部，顶栏下方仅包含主编辑区与右边栏
+  /// 桌面端布局：左右边栏均独立全高显示，顶栏移至主区域顶部，顶栏下方仅包含主编辑区域
   Widget _buildDesktopLayout(
     BuildContext context,
     DiaryEditorialState state,
@@ -785,7 +794,7 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
             onReset: _resetLeftSidebarWidth,
             onDragEnd: _onLeftDragEnd,
           ),
-        // 2. 右侧主体工作区 - 包含顶栏 AppBar，顶栏下方严格仅包含主区域与右边栏
+        // 2. 中间主区域 - 顶栏仅覆盖主区域，顶栏下方严格仅为主编辑区
         Expanded(
           child: Scaffold(
             backgroundColor: tokens.canvas,
@@ -797,52 +806,48 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
               isDesktop: true,
               isMobile: false,
             ),
-            body: Row(
-              children: [
-                // 主区域 (编辑稿纸与工具条) - 保持最小可视宽度并自适应占据剩余空间
-                Expanded(
-                  child: Container(
-                    constraints: const BoxConstraints(
-                      minWidth: LayoutBreakpoints.mainAreaMinWidth,
-                    ),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                    child: Column(
-                      children: [
-                        Expanded(child: _buildWritingArea(tokens)),
-                        _buildBottomToolbar(context, state, tokens, isMobile: false),
-                      ],
-                    ),
-                  ),
-                ),
-                // 右边栏手柄与 AI 梳理视窗
-                if (_isAiSidebarOpen)
-                  PaneResizeHandle(
-                    key: const ValueKey('right_pane_resize_handle'),
-                    tooltip: '拖拽调整AI视窗宽度，双击恢复默认',
-                    onDelta: (delta) =>
-                        _onRightSidebarResize(delta, screenWidth, isDesktop: true),
-                    onReset: _resetRightSidebarWidth,
-                    onDragEnd: _onRightDragEnd,
-                  ),
-                if (showRightInspector)
-                  SizedBox(
-                    width: effectiveRightWidth,
-                    child: _buildRightAiSidebar(
-                      context,
-                      state,
-                      tokens,
-                    ),
-                  ),
-              ],
+            body: Container(
+              constraints: const BoxConstraints(
+                minWidth: LayoutBreakpoints.mainAreaMinWidth,
+              ),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              child: Column(
+                children: [
+                  Expanded(child: _buildWritingArea(tokens)),
+                  _buildBottomToolbar(context, state, tokens, isMobile: false),
+                ],
+              ),
             ),
           ),
         ),
+        // 3. 右边栏 (主编梳理与追问视窗) - 独立全高显示，不被顶栏压制，支持手动拖拽调宽与随时收起
+        if (_isAiSidebarOpen)
+          PaneResizeHandle(
+            key: const ValueKey('right_pane_resize_handle'),
+            tooltip: '拖拽调整AI视窗宽度，双击恢复默认',
+            onDelta: (delta) =>
+                _onRightSidebarResize(delta, screenWidth, isDesktop: true),
+            onReset: _resetRightSidebarWidth,
+            onDragEnd: _onRightDragEnd,
+          ),
+        if (showRightInspector)
+          SizedBox(
+            width: effectiveRightWidth,
+            child: Material(
+              color: tokens.canvas,
+              child: _buildRightAiSidebar(
+                context,
+                state,
+                tokens,
+              ),
+            ),
+          ),
       ],
     );
   }
 
-  /// 平板端主区域与右边栏布局 (笔记列表侧滑出来，默认主区域，点击梳理右边栏显示，右边栏支持拖拽调宽)
+  /// 平板端布局：主区域带顶栏与抽屉，右边栏独立全高显示
   Widget _buildTabletLayout(
     BuildContext context,
     DiaryEditorialState state,
@@ -865,22 +870,41 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
 
     return Row(
       children: [
-        // 1. 主区域 (编辑稿纸与工具条) - 保持最小可视宽度并占据主要空间
+        // 1. 中间主区域 (编辑稿纸与工具条，带顶栏和侧滑抽屉，顶栏仅覆盖主区域)
         Expanded(
-          child: Container(
-            constraints: const BoxConstraints(
-              minWidth: LayoutBreakpoints.mainAreaMinWidth,
+          child: Scaffold(
+            backgroundColor: tokens.canvas,
+            drawer: DiaryManagementDrawer(
+              isPermanent: false,
+              onOpenCorpus: () => _openCorpus(context),
+              onOpenSettings: () => _openSettings(context),
+              onSelectEntry: _handleSelectEntry,
+              onEntryCreated: _handleEntryCreated,
+              onEntryDeleted: _handleEntryDeleted,
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Column(
-              children: [
-                Expanded(child: _buildWritingArea(tokens)),
-                _buildBottomToolbar(context, state, tokens, isMobile: false),
-              ],
+            appBar: _buildStudioAppBar(
+              context: context,
+              entry: state.entry,
+              tokens: tokens,
+              screenWidth: screenWidth,
+              isDesktop: false,
+              isMobile: false,
+            ),
+            body: Container(
+              constraints: const BoxConstraints(
+                minWidth: LayoutBreakpoints.mainAreaMinWidth,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: Column(
+                children: [
+                  Expanded(child: _buildWritingArea(tokens)),
+                  _buildBottomToolbar(context, state, tokens, isMobile: false),
+                ],
+              ),
             ),
           ),
         ),
-        // 2. 右边栏 (主编梳理与追问视窗) - 点击梳理显示，支持手动拖拽调宽与随时收起
+        // 2. 右边栏 (主编梳理与追问视窗) - 独立全高显示，不被顶栏压制
         if (_isAiSidebarOpen)
           PaneResizeHandle(
             key: const ValueKey('right_pane_resize_handle'),
@@ -893,10 +917,13 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
         if (showRightInspector)
           SizedBox(
             width: effectiveRightWidth,
-            child: _buildRightAiSidebar(
-              context,
-              state,
-              tokens,
+            child: Material(
+              color: tokens.canvas,
+              child: _buildRightAiSidebar(
+                context,
+                state,
+                tokens,
+              ),
             ),
           ),
       ],
