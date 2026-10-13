@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:note_english_flutter/app/service_locator.dart';
-import 'package:note_english_flutter/domain/contracts/ai_contracts.dart';
 import 'package:note_english_flutter/domain/gateways/ai_gateway.dart';
 import 'package:note_english_flutter/domain/models/analysis/correction_item.dart';
 import 'package:note_english_flutter/domain/models/analysis/diary_analysis_result.dart';
 import 'package:note_english_flutter/domain/models/analysis/translation_item.dart';
 import 'package:note_english_flutter/domain/models/analysis/unnatural_expression_item.dart';
-import 'package:note_english_flutter/domain/models/config/ai_model_descriptor.dart';
 import 'package:note_english_flutter/domain/models/config/ai_profile_config.dart';
 import 'package:note_english_flutter/domain/models/corpus/corpus_draft.dart';
 import 'package:note_english_flutter/domain/models/diary/diary_entry.dart';
@@ -195,9 +193,11 @@ void main() {
     expect(find.textContaining('延伸应用示例：'), findsOneWidget);
     expect(find.textContaining('I usually clock out at 6 PM sharp.'), findsOneWidget);
 
-    // 7. 进入专属语料库页面 (从侧边栏入口进入)
-    await tester.tap(find.byKey(const ValueKey('diary_drawer_button')));
-    await tester.pumpAndSettle();
+    // 7. 进入专属语料库页面 (桌面端侧边栏常驻呈现；若未常驻则通过侧边栏抽屉展开)
+    if (find.byKey(const ValueKey('corpus_deck_button')).evaluate().isEmpty) {
+      await tester.tap(find.byKey(const ValueKey('diary_drawer_button')));
+      await tester.pumpAndSettle();
+    }
     await tester.tap(find.byKey(const ValueKey('corpus_deck_button')));
     await tester.pumpAndSettle();
 

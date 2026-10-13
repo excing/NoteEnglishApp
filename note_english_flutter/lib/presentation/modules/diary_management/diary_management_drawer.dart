@@ -13,6 +13,7 @@ class DiaryManagementDrawer extends StatefulWidget {
   final void Function(String deletedEntryId)? onEntryDeleted;
   final VoidCallback? onOpenCorpus;
   final VoidCallback? onOpenSettings;
+  final bool isPermanent;
 
   const DiaryManagementDrawer({
     super.key,
@@ -21,6 +22,7 @@ class DiaryManagementDrawer extends StatefulWidget {
     this.onEntryDeleted,
     this.onOpenCorpus,
     this.onOpenSettings,
+    this.isPermanent = false,
   });
 
   @override
@@ -104,35 +106,35 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
   Widget build(BuildContext context) {
     final tokens = AppThemeTokens.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
-    final drawerWidth = (screenWidth * 0.85).clamp(320.0, 420.0);
+    final content = SafeArea(
+      child: BlocBuilder<DiaryListCubit, DiaryListState>(
+        builder: (context, state) {
+          final filtered = state.filteredEntries;
 
-    return Drawer(
-      width: drawerWidth,
-      backgroundColor: tokens.canvas,
-      child: SafeArea(
-        child: BlocBuilder<DiaryListCubit, DiaryListState>(
-          builder: (context, state) {
-            final filtered = state.filteredEntries;
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // 顶部标题栏与新建操作
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 顶部标题栏与新建操作
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.menu_book, color: tokens.terracotta, size: 22),
                           const SizedBox(width: 8),
-                          Text(
-                            '随笔手账',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: tokens.textPrimary,
-                                ),
+                          Flexible(
+                            child: Text(
+                              '随笔手账',
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: tokens.textPrimary,
+                                  ),
+                            ),
                           ),
                           const SizedBox(width: 8),
                           Container(
@@ -153,17 +155,19 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
                           ),
                         ],
                       ),
-                      // 新建随笔按钮
-                      ElevatedButton.icon(
-                        key: const ValueKey('new_diary_button'),
-                        onPressed: () async {
-                          final cubit = context.read<DiaryListCubit>();
-                          final newEntry = await cubit.createEntry();
-                          widget.onEntryCreated?.call(newEntry);
-                          if (context.mounted) {
-                            Navigator.of(context).pop();
-                          }
-                        },
+                    ),
+                    const SizedBox(width: 8),
+                    // 新建随笔按钮
+                    ElevatedButton.icon(
+                      key: const ValueKey('new_diary_button'),
+                      onPressed: () async {
+                        final cubit = context.read<DiaryListCubit>();
+                        final newEntry = await cubit.createEntry();
+                        widget.onEntryCreated?.call(newEntry);
+                        if (!widget.isPermanent && context.mounted) {
+                          Navigator.of(context).pop();
+                        }
+                      },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: tokens.terracotta,
                           foregroundColor: Colors.white,
@@ -260,12 +264,14 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
                           key: const ValueKey('corpus_deck_button'),
                           borderRadius: BorderRadius.circular(10),
                           onTap: () {
-                            Navigator.of(context).pop();
+                            if (!widget.isPermanent) {
+                              Navigator.of(context).pop();
+                            }
                             widget.onOpenCorpus?.call();
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
+                                horizontal: 8, vertical: 10),
                             decoration: BoxDecoration(
                               color: tokens.card,
                               borderRadius: BorderRadius.circular(10),
@@ -276,13 +282,16 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
                               children: [
                                 Icon(Icons.collections_bookmark_outlined,
                                     size: 18, color: tokens.terracotta),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '语料库',
-                                  style: TextStyle(
-                                    color: tokens.textPrimary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    '语料库',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: tokens.textPrimary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -290,19 +299,21 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       // 主编设置入口
                       Expanded(
                         child: InkWell(
                           key: const ValueKey('ai_settings_button'),
                           borderRadius: BorderRadius.circular(10),
                           onTap: () {
-                            Navigator.of(context).pop();
+                            if (!widget.isPermanent) {
+                              Navigator.of(context).pop();
+                            }
                             widget.onOpenSettings?.call();
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
+                                horizontal: 8, vertical: 10),
                             decoration: BoxDecoration(
                               color: tokens.card,
                               borderRadius: BorderRadius.circular(10),
@@ -313,13 +324,16 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
                               children: [
                                 Icon(Icons.tune,
                                     size: 18, color: tokens.textPrimary),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '主编设置',
-                                  style: TextStyle(
-                                    color: tokens.textPrimary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    '主编设置',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: tokens.textPrimary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -334,7 +348,20 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
             );
           },
         ),
-      ),
+      );
+
+    if (widget.isPermanent) {
+      return Container(
+        color: tokens.canvas,
+        child: content,
+      );
+    }
+
+    final drawerWidth = (screenWidth * 0.85).clamp(320.0, 420.0);
+    return Drawer(
+      width: drawerWidth,
+      backgroundColor: tokens.canvas,
+      child: content,
     );
   }
 
@@ -355,7 +382,9 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
         onTap: () {
           context.read<DiaryListCubit>().setActiveEntryId(entry.id);
           widget.onSelectEntry?.call(entry);
-          Navigator.of(context).pop();
+          if (!widget.isPermanent) {
+            Navigator.of(context).pop();
+          }
         },
         child: Container(
           decoration: BoxDecoration(

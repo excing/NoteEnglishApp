@@ -258,11 +258,13 @@ class _EditorialInspectorViewState extends State<EditorialInspectorView> {
                               Icon(Icons.compare_arrows,
                                   size: 16, color: tokens.terracotta),
                               const SizedBox(width: 6),
-                              Text(
-                                '不地道/中式表达: "${item.original}"',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: tokens.textMuted,
+                              Expanded(
+                                child: Text(
+                                  '不地道/中式表达: "${item.original}"',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: tokens.textMuted,
+                                  ),
                                 ),
                               ),
                             ],
@@ -779,12 +781,15 @@ class _EditorialInspectorViewState extends State<EditorialInspectorView> {
         children: [
           Icon(icon, size: 16, color: tokens.terracotta),
           const SizedBox(width: 6),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: tokens.textPrimary,
+          Expanded(
+            child: Text(
+              title,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: tokens.textPrimary,
+              ),
             ),
           ),
           if (badge != null) ...[

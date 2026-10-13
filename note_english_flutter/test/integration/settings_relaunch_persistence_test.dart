@@ -71,9 +71,11 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    // 打开设置 (通过侧边栏)
-    await tester.tap(find.byKey(const ValueKey('diary_drawer_button')));
-    await tester.pumpAndSettle();
+    // 打开设置 (桌面端侧边栏常驻呈现；若未常驻则通过侧边栏抽屉展开)
+    if (find.byKey(const ValueKey('ai_settings_button')).evaluate().isEmpty) {
+      await tester.tap(find.byKey(const ValueKey('diary_drawer_button')));
+      await tester.pumpAndSettle();
+    }
     await tester.tap(find.byKey(const ValueKey('ai_settings_button')));
     await tester.pumpAndSettle();
 
@@ -117,8 +119,10 @@ void main() {
     // Phase 3: 重启后【第一次】打开设置
     // 关键验证：必须立即显示保存的配置，绝不能显示默认值！
     // ==========================================
-    await tester.tap(find.byKey(const ValueKey('diary_drawer_button')));
-    await tester.pumpAndSettle();
+    if (find.byKey(const ValueKey('ai_settings_button')).evaluate().isEmpty) {
+      await tester.tap(find.byKey(const ValueKey('diary_drawer_button')));
+      await tester.pumpAndSettle();
+    }
     await tester.tap(find.byKey(const ValueKey('ai_settings_button')));
     await tester.pumpAndSettle();
 
@@ -141,8 +145,10 @@ void main() {
     await tester.tap(find.text('取消'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('diary_drawer_button')));
-    await tester.pumpAndSettle();
+    if (find.byKey(const ValueKey('ai_settings_button')).evaluate().isEmpty) {
+      await tester.tap(find.byKey(const ValueKey('diary_drawer_button')));
+      await tester.pumpAndSettle();
+    }
     await tester.tap(find.byKey(const ValueKey('ai_settings_button')));
     await tester.pumpAndSettle();
 
