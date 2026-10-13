@@ -11,6 +11,7 @@ import 'package:note_english_flutter/core/theme/app_theme_tokens.dart';
 class PaneResizeHandle extends StatefulWidget {
   final ValueChanged<double> onDelta;
   final VoidCallback? onReset;
+  final VoidCallback? onDragEnd;
   final String? tooltip;
   final double hitWidth;
 
@@ -18,6 +19,7 @@ class PaneResizeHandle extends StatefulWidget {
     super.key,
     required this.onDelta,
     this.onReset,
+    this.onDragEnd,
     this.tooltip,
     this.hitWidth = 8.0,
   });
@@ -43,8 +45,14 @@ class _PaneResizeHandleState extends State<PaneResizeHandle> {
         behavior: HitTestBehavior.opaque,
         onDoubleTap: widget.onReset,
         onHorizontalDragStart: (_) => setState(() => _isDragging = true),
-        onHorizontalDragEnd: (_) => setState(() => _isDragging = false),
-        onHorizontalDragCancel: () => setState(() => _isDragging = false),
+        onHorizontalDragEnd: (_) {
+          setState(() => _isDragging = false);
+          widget.onDragEnd?.call();
+        },
+        onHorizontalDragCancel: () {
+          setState(() => _isDragging = false);
+          widget.onDragEnd?.call();
+        },
         onHorizontalDragUpdate: (details) {
           widget.onDelta(details.primaryDelta ?? 0.0);
         },

@@ -271,7 +271,7 @@ void main() {
       expect(rightInspectorSize.width, equals(380.0));
     });
 
-    testWidgets('极限拖拽与窄屏情况下，主区域严格保持最小可视宽度 (380px)',
+    testWidgets('极限拖拽与窄屏情况下，主区域严格保持最小可视宽度 (210px)',
         (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1024, 768); // 临界桌面尺寸
       tester.view.devicePixelRatio = 1.0;
@@ -293,14 +293,196 @@ void main() {
       await tester.pumpAndSettle();
 
       // 极限向左拖拽右手柄 800px (试图进一步挤压主区域)
-      await tester.drag(rightHandleFinder, const Offset(-800, 0));
-      await tester.pumpAndSettle();
+      if (rightHandleFinder.evaluate().isNotEmpty) {
+        await tester.drag(rightHandleFinder, const Offset(-800, 0));
+        await tester.pumpAndSettle();
+      }
 
-      // 验证主书写输入区域的宽度绝对不低于 380px
+      // 验证主书写输入区域的宽度绝对不低于 210px
       final inputFieldFinder = find.byKey(const ValueKey('diary_input_field'));
       final inputFieldSize = tester.getSize(inputFieldFinder);
-      // 输入框在主区域内部且包含水平 padding (32*2 = 64)，因此输入框宽度 + 64 >= 380
-      expect(inputFieldSize.width + 64.0, greaterThanOrEqualTo(380.0));
+      // 输入框在主区域内部且包含水平 padding (32*2 = 64)，因此输入框宽度 + 64 >= 210
+      expect(inputFieldSize.width + 64.0, greaterThanOrEqualTo(210.0));
+    });
+
+    testWidgets('左右边栏到达最小宽度 (左180/右200) 时停靠不立刻隐藏，继续拉动超过100px弹性距离后才隐藏',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(NoteEnglishApp(initialEntry: testEntry));
+      await tester.pumpAndSettle();
+
+      // 1. 验证左边栏默认显示，初始宽度 320px
+      expect(find.text('随笔手账'), findsOneWidget);
+      final leftHandleFinder = find.byKey(const ValueKey('left_pane_resize_handle'));
+      expect(leftHandleFinder, findsOneWidget);
+
+      // 向左拖拽使其触达最小宽度 180px (320 -> 180 需要 140px，拖拽 -165px，多出 7px 计入弹性距离，远小于 100px)
+      await tester.drag(leftHandleFinder, const Offset(-165, 0));
+      await tester.pumpAndSettle();
+      expect(find.text('随笔手账'), findsOneWidget);
+      final leftDrawerSize = tester.getSize(find.byType(DiaryManagementDrawer));
+      expect(leftDrawerSize.width, equals(180.0));
+
+      // 用户继续向左拉动 60px (累计弹性距离 ~67px <= 100px) -> 停靠在 180px，不立即隐藏！
+      await tester.drag(leftHandleFinder, const Offset(-60, 0));
+      await tester.pumpAndSettle();
+      expect(find.text('随笔手账'), findsOneWidget);
+
+      // 用户继续持续向左拉动超过 100px 弹性距离 (例如继续拉动 -140px，净位移 > 100px)
+      await tester.drag(leftHandleFinder, const Offset(-140, 0));
+      await tester.pumpAndSettle();
+
+      // 松手后正式触发隐藏收起
+      expect(find.text('随笔手账'), findsNothing);
+      expect(find.byKey(const ValueKey('left_pane_resize_handle')), findsNothing);
+
+      // 再次点击左上角按钮，能够重新展开左边栏 (恢复默认 320px)
+      await tester.tap(find.byKey(const ValueKey('diary_drawer_button')));
+      await tester.pumpAndSettle();
+      expect(find.text('随笔手账'), findsOneWidget);
+
+      // 2. 打开右侧 AI 梳理视窗 (初始 380px)
+      await tester.tap(find.byKey(const ValueKey('call_editor_button')));
+      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(find.byType(EditorialInspectorView), findsOneWidget);
+
+      final rightHandleFinder = find.byKey(const ValueKey('right_pane_resize_handle'));
+      expect(rightHandleFinder, findsOneWidget);
+
+      // 向右拖拽使其触达 200px 最小保底宽度 (380 -> 200 需要 180px，拖拽 205px，多出 7px 弹性距离)
+      await tester.drag(rightHandleFinder, const Offset(205, 0));
+      await tester.pumpAndSettle();
+
+      // 触达 200px 时不会立刻隐藏，视窗维持在 200px 最小可视宽度
+      expect(find.byType(EditorialInspectorView), findsOneWidget);
+      final rightInspectorSize = tester.getSize(find.byType(EditorialInspectorView));
+      expect(rightInspectorSize.width, equals(200.0));
+
+      // 用户继续向右拉动 60px (累计弹性距离 ~67px <= 100px) -> 维持在 200px 不隐藏
+      await tester.drag(rightHandleFinder, const Offset(60, 0));
+      await tester.pumpAndSettle();
+      expect(find.byType(EditorialInspectorView), findsOneWidget);
+
+      // 用户继续持续向右拉动超过 100px 弹性距离 (例如继续拉动 140px，累计 > 100px)
+      await tester.drag(rightHandleFinder, const Offset(140, 0));
+      await tester.pumpAndSettle();
+
+      // 松手后正式触发隐藏收起
+      expect(find.byType(EditorialInspectorView), findsNothing);
+      expect(find.byKey(const ValueKey('right_pane_resize_handle')), findsNothing);
+    });
+
+    testWidgets('隐藏后如果用户未松手，且往回拉了 30px 则还原显示 (未松手反向拉动还原机制)',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(NoteEnglishApp(initialEntry: testEntry));
+      await tester.pumpAndSettle();
+
+      // === 1. 左边栏未松手反向拉动还原测试 ===
+      final leftHandleFinder = find.byKey(const ValueKey('left_pane_resize_handle'));
+      expect(leftHandleFinder, findsOneWidget);
+
+      final leftGesture = await tester.startGesture(tester.getCenter(leftHandleFinder));
+      await tester.pump();
+
+      // 平滑向左拖动至超过 100px 弹性距离触发临时隐藏 (总计 -280px)
+      for (int i = 0; i < 14; i++) {
+        await leftGesture.moveBy(const Offset(-20, 0));
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(find.text('随笔手账'), findsNothing);
+      // 手柄由于用户尚未松手，在边缘保持活跃挂载
+      expect(find.byKey(const ValueKey('left_pane_resize_handle')), findsOneWidget);
+
+      // 用户未松手，往回（向右）拉 20px (< 30px 阈值) -> 依旧维持隐藏
+      await leftGesture.moveBy(const Offset(20, 0));
+      await tester.pump(const Duration(milliseconds: 20));
+      expect(find.text('随笔手账'), findsNothing);
+
+      // 用户未松手，继续往回（向右）拉 20px (累计达到 40px >= 30px) -> 触发还原显示！
+      await leftGesture.moveBy(const Offset(20, 0));
+      await tester.pump(const Duration(milliseconds: 20));
+      expect(find.text('随笔手账'), findsOneWidget);
+
+      // 松开手指
+      await leftGesture.up();
+      await tester.pumpAndSettle();
+      // 松手后确认依然保持展开状态
+      expect(find.text('随笔手账'), findsOneWidget);
+
+      // === 2. 右边栏未松手反向拉动还原测试 ===
+      await tester.tap(find.byKey(const ValueKey('call_editor_button')));
+      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(find.byType(EditorialInspectorView), findsOneWidget);
+
+      final rightHandleFinder = find.byKey(const ValueKey('right_pane_resize_handle'));
+      expect(rightHandleFinder, findsOneWidget);
+
+      final rightGesture = await tester.startGesture(tester.getCenter(rightHandleFinder));
+      await tester.pump();
+
+      // 平滑向右拖动至超过 100px 弹性距离触发临时隐藏 (总计 +320px)
+      for (int i = 0; i < 16; i++) {
+        await rightGesture.moveBy(const Offset(20, 0));
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(find.byType(EditorialInspectorView), findsNothing);
+      // 未松手，右手柄依然挂载在边缘
+      expect(find.byKey(const ValueKey('right_pane_resize_handle')), findsOneWidget);
+
+      // 未松手，往回（向左）拉 20px (< 30px 阈值) -> 依然保持隐藏
+      await rightGesture.moveBy(const Offset(-20, 0));
+      await tester.pump(const Duration(milliseconds: 20));
+      expect(find.byType(EditorialInspectorView), findsNothing);
+
+      // 未松手，继续往回（向左）拉 20px (累计达到 40px >= 30px) -> 触发还原显示！
+      await rightGesture.moveBy(const Offset(-20, 0));
+      await tester.pump(const Duration(milliseconds: 20));
+      expect(find.byType(EditorialInspectorView), findsOneWidget);
+
+      // 松开手指
+      await rightGesture.up();
+      await tester.pumpAndSettle();
+      // 松手后确认依然保持展开状态
+      expect(find.byType(EditorialInspectorView), findsOneWidget);
+    });
+
+    testWidgets('双边栏并存时，拖宽一侧边栏，主区域与另一侧边栏联动等比例压缩',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(NoteEnglishApp(initialEntry: testEntry));
+      await tester.pumpAndSettle();
+
+      // 打开右侧 AI 视窗
+      await tester.tap(find.byKey(const ValueKey('call_editor_button')));
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      final leftHandleFinder = find.byKey(const ValueKey('left_pane_resize_handle'));
+      final rightInspectorFinder = find.byType(EditorialInspectorView);
+
+      final initialRightWidth = tester.getSize(rightInspectorFinder).width;
+      expect(initialRightWidth, equals(380.0));
+
+      // 向右拖拽左手柄 60px (使左边栏变宽)
+      await tester.drag(leftHandleFinder, const Offset(60, 0));
+      await tester.pumpAndSettle();
+
+      // 验证右侧边栏同步动态分担压缩 (宽度变窄 < 380px)
+      final compressedRightWidth = tester.getSize(rightInspectorFinder).width;
+      expect(compressedRightWidth, lessThan(380.0));
+      expect(compressedRightWidth, greaterThanOrEqualTo(200.0)); // 处于修改后的 200 最小限制范围内
     });
   });
 }

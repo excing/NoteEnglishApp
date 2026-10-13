@@ -27,17 +27,23 @@ abstract final class LayoutBreakpoints {
   static const double tablet = 720.0;
 
   /// 主区域 (编辑稿纸) 最小保证可视宽度
-  static const double mainAreaMinWidth = 380.0;
+  static const double mainAreaMinWidth = 210.0;
 
   /// 左边栏默认、最小与最大宽度
   static const double leftSidebarDefaultWidth = 320.0;
-  static const double leftSidebarMinWidth = 240.0;
+  static const double leftSidebarMinWidth = 180.0;
   static const double leftSidebarMaxWidth = 460.0;
 
   /// 右边栏 (AI 视窗) 默认、最小与最大宽度
   static const double rightSidebarDefaultWidth = 380.0;
-  static const double rightSidebarMinWidth = 300.0;
+  static const double rightSidebarMinWidth = 200.0;
   static const double rightSidebarMaxWidth = 560.0;
+
+  /// 边栏达到最小宽度后，用户继续向收起方向拉动触发自动隐藏所需的弹性心理距离
+  static const double collapseElasticDistance = 100.0;
+
+  /// 隐藏后未松手，用户往展开方向回拉达到此距离时还原显示
+  static const double restoreDragThreshold = 30.0;
 }
 
 /// 沉浸式随笔书房主页面 (Writing Studio)
@@ -65,21 +71,169 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
   /// 右边栏当前用户自定义宽度
   double _rightSidebarWidth = LayoutBreakpoints.rightSidebarDefaultWidth;
 
+  /// 左边栏达到最小宽度后的累计收起弹性拉动距离
+  double _leftSidebarOverdrag = 0.0;
+
+  /// 右边栏达到最小宽度后的累计收起弹性拉动距离
+  double _rightSidebarOverdrag = 0.0;
+
+  /// 左边栏拖拽中因超过弹性距离而临时隐藏状态
+  bool _isLeftSidebarTemporarilyCollapsed = false;
+
+  /// 右边栏拖拽中因超过弹性距离而临时隐藏状态
+  bool _isRightSidebarTemporarilyCollapsed = false;
+
+  /// 左边栏临时隐藏后，未松手往回拉的累计距离
+  double _leftSidebarReversePull = 0.0;
+
+  /// 右边栏临时隐藏后，未松手往回拉的累计距离
+  double _rightSidebarReversePull = 0.0;
+
+  void _onLeftDragEnd() {
+    setState(() {
+      if (_isLeftSidebarTemporarilyCollapsed) {
+        _isLeftSidebarOpen = false;
+        _leftSidebarWidth = LayoutBreakpoints.leftSidebarDefaultWidth;
+        _isLeftSidebarTemporarilyCollapsed = false;
+      }
+      _leftSidebarOverdrag = 0.0;
+      _leftSidebarReversePull = 0.0;
+    });
+  }
+
+  void _onRightDragEnd() {
+    setState(() {
+      if (_isRightSidebarTemporarilyCollapsed) {
+        _isAiSidebarOpen = false;
+        _rightSidebarWidth = LayoutBreakpoints.rightSidebarDefaultWidth;
+        _isRightSidebarTemporarilyCollapsed = false;
+      }
+      _rightSidebarOverdrag = 0.0;
+      _rightSidebarReversePull = 0.0;
+    });
+  }
+
   void _onLeftSidebarResize(double delta, double screenWidth) {
     setState(() {
-      final activeRightWidth = _isAiSidebarOpen ? _rightSidebarWidth : 0.0;
-      final maxAllowed = (screenWidth -
-              activeRightWidth -
-              LayoutBreakpoints.mainAreaMinWidth -
-              (_isAiSidebarOpen ? 16.0 : 8.0))
-          .clamp(
-        LayoutBreakpoints.leftSidebarMinWidth,
-        LayoutBreakpoints.leftSidebarMaxWidth,
-      );
-      _leftSidebarWidth = (_leftSidebarWidth + delta).clamp(
-        LayoutBreakpoints.leftSidebarMinWidth,
-        maxAllowed,
-      );
+      // 若当前处于拖拽临时收起状态：监听未松手反向拉动
+      if (_isLeftSidebarTemporarilyCollapsed) {
+        if (delta > 0) {
+          _leftSidebarReversePull += delta;
+          if (_leftSidebarReversePull >=
+              LayoutBreakpoints.restoreDragThreshold) {
+            // 达到 30px 反向拉动距离，还原显示！
+            _isLeftSidebarTemporarilyCollapsed = false;
+            _leftSidebarWidth = LayoutBreakpoints.leftSidebarMinWidth;
+            _leftSidebarOverdrag = 0.0;
+            _leftSidebarReversePull = 0.0;
+          }
+        } else {
+          // 继续向左拉，重置反向拉动累计
+          _leftSidebarReversePull = 0.0;
+        }
+        return;
+      }
+
+      // 1. 若向左拖拽（变窄，delta < 0）
+      if (delta < 0) {
+        if (_leftSidebarWidth > LayoutBreakpoints.leftSidebarMinWidth) {
+          final candidate = _leftSidebarWidth + delta;
+          if (candidate >= LayoutBreakpoints.leftSidebarMinWidth) {
+            _leftSidebarWidth = candidate;
+            _leftSidebarOverdrag = 0.0;
+            return;
+          } else {
+            // 穿过最小宽度 180px 边界，超出的部分计入弹性拉动距离
+            final excess = LayoutBreakpoints.leftSidebarMinWidth - candidate;
+            _leftSidebarWidth = LayoutBreakpoints.leftSidebarMinWidth;
+            _leftSidebarOverdrag += excess;
+          }
+        } else {
+          // 已处于最小宽度 180px，用户持续向左拉动累计弹性距离
+          _leftSidebarOverdrag += (-delta);
+        }
+
+        // 达到或超过心理弹性距离 (100px) 后，触发临时收起隐藏
+        if (_leftSidebarOverdrag >= LayoutBreakpoints.collapseElasticDistance) {
+          _isLeftSidebarTemporarilyCollapsed = true;
+          _leftSidebarReversePull = 0.0;
+        }
+        return;
+      }
+
+      // 2. 若向右拖拽变宽 (delta > 0)
+      if (_leftSidebarOverdrag > 0) {
+        final consumed = delta.clamp(0.0, _leftSidebarOverdrag);
+        _leftSidebarOverdrag -= consumed;
+        delta -= consumed;
+        if (_leftSidebarOverdrag > 0 || delta <= 0) {
+          return;
+        }
+      }
+
+      final isBothOpen = _isLeftSidebarOpen &&
+          !_isLeftSidebarTemporarilyCollapsed &&
+          _isAiSidebarOpen &&
+          !_isRightSidebarTemporarilyCollapsed;
+      if (isBothOpen) {
+        // 双边栏同时打开时：主区域与右侧边栏以等比例 (1:1 各 50%) 共同承担压缩空间
+        final totalContentWidth = screenWidth - 16.0;
+        final currentMainWidth =
+            totalContentWidth - _leftSidebarWidth - _rightSidebarWidth;
+
+        final maxMainCompress = (currentMainWidth - LayoutBreakpoints.mainAreaMinWidth)
+            .clamp(0.0, double.infinity);
+        final maxRightCompress =
+            (_rightSidebarWidth - LayoutBreakpoints.rightSidebarMinWidth)
+                .clamp(0.0, double.infinity);
+
+        var halfDelta = delta / 2;
+        var mainCompress = halfDelta.clamp(0.0, maxMainCompress);
+        var rightCompress = halfDelta.clamp(0.0, maxRightCompress);
+
+        // 若一方达到压缩极限，溢出部分尝试由另一方额外吸收
+        if (halfDelta > maxMainCompress) {
+          final excess = halfDelta - maxMainCompress;
+          final additionalRight =
+              excess.clamp(0.0, maxRightCompress - rightCompress);
+          rightCompress += additionalRight;
+        } else if (halfDelta > maxRightCompress) {
+          final excess = halfDelta - maxRightCompress;
+          final additionalMain =
+              excess.clamp(0.0, maxMainCompress - mainCompress);
+          mainCompress += additionalMain;
+        }
+
+        final actualExpand = mainCompress + rightCompress;
+        final proposedLeftWidth = (_leftSidebarWidth + actualExpand)
+            .clamp(LayoutBreakpoints.leftSidebarMinWidth,
+                LayoutBreakpoints.leftSidebarMaxWidth);
+
+        final realDelta = proposedLeftWidth - _leftSidebarWidth;
+        _leftSidebarWidth = proposedLeftWidth;
+
+        // 右边栏相应压缩，保底停留在 200px 最小宽度，不立刻隐藏
+        final proposedRightWidth = _rightSidebarWidth -
+            (rightCompress *
+                (actualExpand > 0 ? (realDelta / actualExpand) : 1.0));
+        _rightSidebarWidth = proposedRightWidth.clamp(
+          LayoutBreakpoints.rightSidebarMinWidth,
+          LayoutBreakpoints.rightSidebarMaxWidth,
+        );
+      } else {
+        // 单侧展开：由主区域承担压缩，保证主区域不低于 mainAreaMinWidth (210px)
+        final maxAllowed = (screenWidth -
+                LayoutBreakpoints.mainAreaMinWidth -
+                8.0)
+            .clamp(
+          LayoutBreakpoints.leftSidebarMinWidth,
+          LayoutBreakpoints.leftSidebarMaxWidth,
+        );
+        _leftSidebarWidth = (_leftSidebarWidth + delta).clamp(
+          LayoutBreakpoints.leftSidebarMinWidth,
+          maxAllowed,
+        );
+      }
     });
   }
 
@@ -89,33 +243,146 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
     required bool isDesktop,
   }) {
     setState(() {
-      final activeLeftWidth =
-          (isDesktop && _isLeftSidebarOpen) ? _leftSidebarWidth : 0.0;
-      final maxAllowed = (screenWidth -
-              activeLeftWidth -
-              LayoutBreakpoints.mainAreaMinWidth -
-              ((isDesktop && _isLeftSidebarOpen) ? 16.0 : 8.0))
-          .clamp(
-        LayoutBreakpoints.rightSidebarMinWidth,
-        LayoutBreakpoints.rightSidebarMaxWidth,
-      );
-      // 向左拖拽 delta 为负，增大右侧宽度；向右拖拽 delta 为正，减小右侧宽度
-      _rightSidebarWidth = (_rightSidebarWidth - delta).clamp(
-        LayoutBreakpoints.rightSidebarMinWidth,
-        maxAllowed,
-      );
+      final expandDelta = -delta;
+
+      // 若当前处于拖拽临时收起状态：监听未松手反向拉动
+      if (_isRightSidebarTemporarilyCollapsed) {
+        if (expandDelta > 0) {
+          _rightSidebarReversePull += expandDelta;
+          if (_rightSidebarReversePull >=
+              LayoutBreakpoints.restoreDragThreshold) {
+            // 达到 30px 反向拉动距离，还原显示！
+            _isRightSidebarTemporarilyCollapsed = false;
+            _rightSidebarWidth = LayoutBreakpoints.rightSidebarMinWidth;
+            _rightSidebarOverdrag = 0.0;
+            _rightSidebarReversePull = 0.0;
+          }
+        } else {
+          // 继续向右拉，重置反向拉动累计
+          _rightSidebarReversePull = 0.0;
+        }
+        return;
+      }
+
+      // 1. 若向右拖拽（变窄，expandDelta < 0）
+      if (expandDelta < 0) {
+        if (_rightSidebarWidth > LayoutBreakpoints.rightSidebarMinWidth) {
+          final candidate = _rightSidebarWidth + expandDelta;
+          if (candidate >= LayoutBreakpoints.rightSidebarMinWidth) {
+            _rightSidebarWidth = candidate;
+            _rightSidebarOverdrag = 0.0;
+            return;
+          } else {
+            // 穿过最小宽度 200px 边界，超出的部分计入弹性拉动距离
+            final excess = LayoutBreakpoints.rightSidebarMinWidth - candidate;
+            _rightSidebarWidth = LayoutBreakpoints.rightSidebarMinWidth;
+            _rightSidebarOverdrag += excess;
+          }
+        } else {
+          // 已处于最小宽度 200px，用户持续向右拉动累计弹性距离
+          _rightSidebarOverdrag += (-expandDelta);
+        }
+
+        // 达到或超过心理弹性距离 (100px) 后，触发临时收起隐藏
+        if (_rightSidebarOverdrag >= LayoutBreakpoints.collapseElasticDistance) {
+          _isRightSidebarTemporarilyCollapsed = true;
+          _rightSidebarReversePull = 0.0;
+        }
+        return;
+      }
+
+      // 2. 若向左拖拽变宽 (expandDelta > 0)
+      if (_rightSidebarOverdrag > 0) {
+        final consumed = expandDelta.clamp(0.0, _rightSidebarOverdrag);
+        _rightSidebarOverdrag -= consumed;
+        final remainingExpand = expandDelta - consumed;
+        if (_rightSidebarOverdrag > 0 || remainingExpand <= 0) {
+          return;
+        }
+      }
+
+      final isBothOpen = isDesktop &&
+          _isLeftSidebarOpen &&
+          !_isLeftSidebarTemporarilyCollapsed &&
+          _isAiSidebarOpen &&
+          !_isRightSidebarTemporarilyCollapsed;
+      if (isBothOpen) {
+        // 双边栏同时打开时：主区域与左侧边栏以等比例 (1:1 各 50%) 共同承担压缩空间
+        final totalContentWidth = screenWidth - 16.0;
+        final currentMainWidth =
+            totalContentWidth - _leftSidebarWidth - _rightSidebarWidth;
+
+        final maxMainCompress = (currentMainWidth - LayoutBreakpoints.mainAreaMinWidth)
+            .clamp(0.0, double.infinity);
+        final maxLeftCompress =
+            (_leftSidebarWidth - LayoutBreakpoints.leftSidebarMinWidth)
+                .clamp(0.0, double.infinity);
+
+        var halfDelta = expandDelta / 2;
+        var mainCompress = halfDelta.clamp(0.0, maxMainCompress);
+        var leftCompress = halfDelta.clamp(0.0, maxLeftCompress);
+
+        // 若一方达到压缩极限，溢出部分尝试由另一方额外吸收
+        if (halfDelta > maxMainCompress) {
+          final excess = halfDelta - maxMainCompress;
+          final additionalLeft =
+              excess.clamp(0.0, maxLeftCompress - leftCompress);
+          leftCompress += additionalLeft;
+        } else if (halfDelta > maxLeftCompress) {
+          final excess = halfDelta - maxLeftCompress;
+          final additionalMain =
+              excess.clamp(0.0, maxMainCompress - mainCompress);
+          mainCompress += additionalMain;
+        }
+
+        final actualExpand = mainCompress + leftCompress;
+        final proposedRightWidth = (_rightSidebarWidth + actualExpand)
+            .clamp(LayoutBreakpoints.rightSidebarMinWidth,
+                LayoutBreakpoints.rightSidebarMaxWidth);
+
+        final realDelta = proposedRightWidth - _rightSidebarWidth;
+        _rightSidebarWidth = proposedRightWidth;
+
+        // 左边栏相应压缩，保底停留在 180px 最小宽度，不立刻隐藏
+        final proposedLeftWidth = _leftSidebarWidth -
+            (leftCompress *
+                (actualExpand > 0 ? (realDelta / actualExpand) : 1.0));
+        _leftSidebarWidth = proposedLeftWidth.clamp(
+          LayoutBreakpoints.leftSidebarMinWidth,
+          LayoutBreakpoints.leftSidebarMaxWidth,
+        );
+      } else {
+        // 单侧展开（桌面单边或平板端）：由主区域承担压缩
+        final maxAllowed = (screenWidth -
+                LayoutBreakpoints.mainAreaMinWidth -
+                8.0)
+            .clamp(
+          LayoutBreakpoints.rightSidebarMinWidth,
+          LayoutBreakpoints.rightSidebarMaxWidth,
+        );
+        _rightSidebarWidth = (_rightSidebarWidth + expandDelta).clamp(
+          LayoutBreakpoints.rightSidebarMinWidth,
+          maxAllowed,
+        );
+      }
     });
   }
 
   void _resetLeftSidebarWidth() {
     setState(() {
       _leftSidebarWidth = LayoutBreakpoints.leftSidebarDefaultWidth;
+      _leftSidebarOverdrag = 0.0;
+      _leftSidebarReversePull = 0.0;
+      _isLeftSidebarTemporarilyCollapsed = false;
     });
   }
 
   void _resetRightSidebarWidth() {
     setState(() {
       _rightSidebarWidth = LayoutBreakpoints.rightSidebarDefaultWidth;
+      _rightSidebarOverdrag = 0.0;
+      _rightSidebarReversePull = 0.0;
+      _isRightSidebarTemporarilyCollapsed = false;
     });
   }
 
@@ -333,7 +600,12 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
                       : '随笔手账与管理',
                   onPressed: () {
                     if (isDesktop) {
-                      setState(() => _isLeftSidebarOpen = !_isLeftSidebarOpen);
+                      setState(() {
+                        _isLeftSidebarOpen = !_isLeftSidebarOpen;
+                        _isLeftSidebarTemporarilyCollapsed = false;
+                        _leftSidebarOverdrag = 0.0;
+                        _leftSidebarReversePull = 0.0;
+                      });
                     } else {
                       Scaffold.of(scaffoldCtx).openDrawer();
                     }
@@ -413,7 +685,12 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
                     ),
                     tooltip: _isAiSidebarOpen ? '收起主编视窗' : '展开主编视窗',
                     onPressed: () {
-                      setState(() => _isAiSidebarOpen = !_isAiSidebarOpen);
+                      setState(() {
+                        _isAiSidebarOpen = !_isAiSidebarOpen;
+                        _isRightSidebarTemporarilyCollapsed = false;
+                        _rightSidebarOverdrag = 0.0;
+                        _rightSidebarReversePull = 0.0;
+                      });
                     },
                   ),
                 const SizedBox(width: 4),
@@ -438,11 +715,16 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
     double screenWidth,
   ) {
     // 动态计算当前各栏可用宽度，严格保障主区域不低于 mainAreaMinWidth
-    final activeRightWidth = _isAiSidebarOpen ? _rightSidebarWidth : 0.0;
+    final showLeftDrawer =
+        _isLeftSidebarOpen && !_isLeftSidebarTemporarilyCollapsed;
+    final showRightInspector =
+        _isAiSidebarOpen && !_isRightSidebarTemporarilyCollapsed;
+
+    final activeRightWidth = showRightInspector ? _rightSidebarWidth : 0.0;
     final maxLeft = (screenWidth -
             activeRightWidth -
             LayoutBreakpoints.mainAreaMinWidth -
-            (_isAiSidebarOpen ? 16.0 : 8.0))
+            (showRightInspector ? 16.0 : 8.0))
         .clamp(
       LayoutBreakpoints.leftSidebarMinWidth,
       LayoutBreakpoints.leftSidebarMaxWidth,
@@ -450,11 +732,11 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
     final effectiveLeftWidth =
         _leftSidebarWidth.clamp(LayoutBreakpoints.leftSidebarMinWidth, maxLeft);
 
-    final activeLeftWidth = _isLeftSidebarOpen ? effectiveLeftWidth : 0.0;
+    final activeLeftWidth = showLeftDrawer ? effectiveLeftWidth : 0.0;
     final maxRight = (screenWidth -
             activeLeftWidth -
             LayoutBreakpoints.mainAreaMinWidth -
-            (_isLeftSidebarOpen ? 16.0 : 8.0))
+            (showLeftDrawer ? 16.0 : 8.0))
         .clamp(
       LayoutBreakpoints.rightSidebarMinWidth,
       LayoutBreakpoints.rightSidebarMaxWidth,
@@ -467,7 +749,7 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
     return Row(
       children: [
         // 1. 左边栏 (笔记列表) - 默认常驻显示，支持快捷折叠收起与用户手动拖拽调宽
-        if (_isLeftSidebarOpen) ...[
+        if (showLeftDrawer)
           SizedBox(
             width: effectiveLeftWidth,
             child: DiaryManagementDrawer(
@@ -479,13 +761,14 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
               onEntryDeleted: _handleEntryDeleted,
             ),
           ),
+        if (_isLeftSidebarOpen)
           PaneResizeHandle(
             key: const ValueKey('left_pane_resize_handle'),
             tooltip: '拖拽调整笔记列表宽度，双击恢复默认',
             onDelta: (delta) => _onLeftSidebarResize(delta, screenWidth),
             onReset: _resetLeftSidebarWidth,
+            onDragEnd: _onLeftDragEnd,
           ),
-        ],
         // 2. 主区域 (编辑稿纸与工具条) - 保持最小可视宽度并自适应占据剩余空间
         Expanded(
           child: Container(
@@ -502,14 +785,16 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
           ),
         ),
         // 3. 右边栏 (主编梳理与追问视窗) - 点击梳理显示，支持手动拖拽调宽与随时收起
-        if (_isAiSidebarOpen) ...[
+        if (_isAiSidebarOpen)
           PaneResizeHandle(
             key: const ValueKey('right_pane_resize_handle'),
             tooltip: '拖拽调整AI视窗宽度，双击恢复默认',
             onDelta: (delta) =>
                 _onRightSidebarResize(delta, screenWidth, isDesktop: true),
             onReset: _resetRightSidebarWidth,
+            onDragEnd: _onRightDragEnd,
           ),
+        if (showRightInspector)
           SizedBox(
             width: effectiveRightWidth,
             child: _buildRightAiSidebar(
@@ -519,7 +804,6 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
               onClose: () => setState(() => _isAiSidebarOpen = false),
             ),
           ),
-        ],
       ],
     );
   }
@@ -531,6 +815,8 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
     AppThemeTokens tokens,
     double screenWidth,
   ) {
+    final showRightInspector =
+        _isAiSidebarOpen && !_isRightSidebarTemporarilyCollapsed;
     final maxRight = (screenWidth -
             LayoutBreakpoints.mainAreaMinWidth -
             8.0)
@@ -561,14 +847,16 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
           ),
         ),
         // 2. 右边栏 (主编梳理与追问视窗) - 点击梳理显示，支持手动拖拽调宽与随时收起
-        if (_isAiSidebarOpen) ...[
+        if (_isAiSidebarOpen)
           PaneResizeHandle(
             key: const ValueKey('right_pane_resize_handle'),
             tooltip: '拖拽调整AI视窗宽度，双击恢复默认',
             onDelta: (delta) =>
                 _onRightSidebarResize(delta, screenWidth, isDesktop: false),
             onReset: _resetRightSidebarWidth,
+            onDragEnd: _onRightDragEnd,
           ),
+        if (showRightInspector)
           SizedBox(
             width: effectiveRightWidth,
             child: _buildRightAiSidebar(
@@ -578,7 +866,6 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
               onClose: () => setState(() => _isAiSidebarOpen = false),
             ),
           ),
-        ],
       ],
     );
   }
@@ -688,19 +975,24 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Text('✨', style: TextStyle(fontSize: 16)),
-                    const SizedBox(width: 8),
-                    Text(
-                      '主编梳理与追问',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: tokens.textPrimary,
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Text('✨', style: TextStyle(fontSize: 16)),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          '主编梳理与追问',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: tokens.textPrimary,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 IconButton(
                   key: const ValueKey('close_ai_sidebar_button'),
@@ -769,113 +1061,123 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
     required bool isMobile,
   }) {
     final isAnalyzing = state.status == DiaryAnalysisStatus.analyzing;
-    final screenWidth = MediaQuery.of(context).size.width;
 
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: screenWidth < 340 ? 10 : 16,
-        vertical: 12,
-      ),
-      decoration: BoxDecoration(
-        color: tokens.canvas,
-        border: Border(top: BorderSide(color: tokens.cardBorder)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Flexible(
-              child: Text(
-                screenWidth < 280
-                    ? '${state.entry.metadata.wordCount} 字'
-                    : '${state.entry.metadata.wordCount} 字 · 自动存盘',
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-                style: TextStyle(
-                  fontSize: screenWidth < 300 ? 11 : 13,
-                  color: tokens.textMuted,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Row(
-              mainAxisSize: MainAxisSize.min,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final isCompact = availableWidth < 380;
+        final isVeryCompact = availableWidth < 280;
+
+        return Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: isCompact ? 10 : 16,
+            vertical: 12,
+          ),
+          decoration: BoxDecoration(
+            color: tokens.canvas,
+            border: Border(top: BorderSide(color: tokens.cardBorder)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // 在平板或桌面端，若已存在梳理结果且右边栏未展开，提供快捷展开胶囊
-                if (!isMobile &&
-                    state.entry.analysisResult != null &&
-                    !_isAiSidebarOpen) ...[
-                  TextButton.icon(
-                    key: const ValueKey('view_insights_chip_button'),
-                    onPressed: () {
-                      setState(() => _isAiSidebarOpen = true);
-                    },
-                    style: TextButton.styleFrom(
-                      foregroundColor: tokens.terracotta,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 8),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    icon: const Text('✨', style: TextStyle(fontSize: 12)),
-                    label: const Text(
-                      '查看梳理洞察',
-                      style:
-                          TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                ],
-                ElevatedButton.icon(
-                  key: const ValueKey('call_editor_button'),
-                  onPressed: isAnalyzing
-                      ? null
-                      : () {
-                          context
-                              .read<DiaryEditorialCubit>()
-                              .updateContent(_textCtrl.text);
-                          if (!isMobile) {
-                            setState(() => _isAiSidebarOpen = true);
-                          }
-                          context.read<DiaryEditorialCubit>().requestAiAnalysis();
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: tokens.terracotta,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: screenWidth < 340 ? 12 : 18,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    elevation: 0,
-                  ),
-                  icon: isAnalyzing
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('✨', style: TextStyle(fontSize: 14)),
-                  label: Text(
-                    isAnalyzing
-                        ? '构思中...'
-                        : (screenWidth < 300 ? '梳理' : '呼叫主编梳理'),
+                Flexible(
+                  child: Text(
+                    isVeryCompact
+                        ? '${state.entry.metadata.wordCount} 字'
+                        : '${state.entry.metadata.wordCount} 字 · 自动存盘',
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                     style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: screenWidth < 340 ? 13 : 14,
+                      fontSize: isVeryCompact ? 11 : 13,
+                      color: tokens.textMuted,
                     ),
                   ),
+                ),
+                const SizedBox(width: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 在平板或桌面端，若已存在梳理结果且右边栏未展开，且空间充裕时提供快捷展开胶囊
+                    if (!isMobile &&
+                        state.entry.analysisResult != null &&
+                        !_isAiSidebarOpen &&
+                        availableWidth >= 380) ...[
+                      TextButton.icon(
+                        key: const ValueKey('view_insights_chip_button'),
+                        onPressed: () {
+                          setState(() => _isAiSidebarOpen = true);
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: tokens.terracotta,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Text('✨', style: TextStyle(fontSize: 12)),
+                        label: const Text(
+                          '查看梳理洞察',
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    ElevatedButton.icon(
+                      key: const ValueKey('call_editor_button'),
+                      onPressed: isAnalyzing
+                          ? null
+                          : () {
+                              context
+                                  .read<DiaryEditorialCubit>()
+                                  .updateContent(_textCtrl.text);
+                              if (!isMobile) {
+                                setState(() => _isAiSidebarOpen = true);
+                              }
+                              context
+                                  .read<DiaryEditorialCubit>()
+                                  .requestAiAnalysis();
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: tokens.terracotta,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isCompact ? 12 : 18,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        elevation: 0,
+                      ),
+                      icon: isAnalyzing
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('✨', style: TextStyle(fontSize: 14)),
+                      label: Text(
+                        isAnalyzing
+                            ? '构思中...'
+                            : (isCompact ? '梳理' : '呼叫主编梳理'),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: isCompact ? 13 : 14,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

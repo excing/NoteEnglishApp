@@ -107,248 +107,222 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
     final tokens = AppThemeTokens.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
     final content = SafeArea(
-      child: BlocBuilder<DiaryListCubit, DiaryListState>(
-        builder: (context, state) {
-          final filtered = state.filteredEntries;
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final drawerWidth = constraints.maxWidth;
+          final isCompact = drawerWidth < 280;
+          final isUltraCompact = drawerWidth < 210;
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 顶部标题栏与新建操作
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.menu_book, color: tokens.terracotta, size: 22),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              '随笔手账',
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: tokens.textPrimary,
-                                  ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: tokens.highlight,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              '${state.entries.length} 篇',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: tokens.terracotta,
+          return BlocBuilder<DiaryListCubit, DiaryListState>(
+            builder: (context, state) {
+              final filtered = state.filteredEntries;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // 顶部标题栏与新建操作
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      isUltraCompact ? 8 : 16,
+                      12,
+                      isUltraCompact ? 8 : 16,
+                      8,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(Icons.menu_book,
+                                  color: tokens.terracotta,
+                                  size: isUltraCompact ? 18 : 22),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  '随笔手账',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(
+                                        fontSize: isUltraCompact ? 14 : 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: tokens.textPrimary,
+                                      ),
+                                ),
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // 新建随笔按钮
-                    ElevatedButton.icon(
-                      key: const ValueKey('new_diary_button'),
-                      onPressed: () async {
-                        final cubit = context.read<DiaryListCubit>();
-                        final newEntry = await cubit.createEntry();
-                        widget.onEntryCreated?.call(newEntry);
-                        if (!widget.isPermanent && context.mounted) {
-                          Navigator.of(context).pop();
-                        }
-                      },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: tokens.terracotta,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 0,
-                        ),
-                        icon: const Icon(Icons.add, size: 16),
-                        label: const Text(
-                          '新建随笔',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // 搜索框
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: tokens.card,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: tokens.cardBorder),
-                    ),
-                    child: TextField(
-                      key: const ValueKey('search_diary_input'),
-                      controller: _searchCtrl,
-                      style: TextStyle(color: tokens.textPrimary, fontSize: 13),
-                      onChanged: (text) {
-                        context.read<DiaryListCubit>().setSearchQuery(text);
-                      },
-                      decoration: InputDecoration(
-                        hintText: '搜索随笔内容或天气...',
-                        hintStyle: TextStyle(
-                          color: tokens.textMuted.withValues(alpha: 0.6),
-                          fontSize: 13,
-                        ),
-                        prefixIcon: Icon(Icons.search,
-                            size: 18, color: tokens.textMuted),
-                        suffixIcon: _searchCtrl.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear, size: 16),
-                                onPressed: () {
-                                  _searchCtrl.clear();
-                                  context.read<DiaryListCubit>().setSearchQuery('');
-                                },
-                              )
-                            : null,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                        border: InputBorder.none,
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 4),
-                Divider(color: tokens.cardBorder, height: 1),
-
-                // 随笔列表视图
-                Expanded(
-                  child: filtered.isEmpty
-                      ? _buildEmptyState(context, tokens, state)
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          itemCount: filtered.length,
-                          itemBuilder: (context, index) {
-                            final entry = filtered[index];
-                            final isActive = entry.id == state.activeEntryId;
-                            return _buildEntryCard(
-                              context: context,
-                              entry: entry,
-                              isActive: isActive,
-                              tokens: tokens,
-                            );
-                          },
-                        ),
-                ),
-
-                // 底部常驻功能区：语料库 与 设置
-                Divider(color: tokens.cardBorder, height: 1),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  child: Row(
-                    children: [
-                      // 语料库入口
-                      Expanded(
-                        child: InkWell(
-                          key: const ValueKey('corpus_deck_button'),
-                          borderRadius: BorderRadius.circular(10),
-                          onTap: () {
-                            if (!widget.isPermanent) {
-                              Navigator.of(context).pop();
-                            }
-                            widget.onOpenCorpus?.call();
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: tokens.card,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: tokens.cardBorder),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.collections_bookmark_outlined,
-                                    size: 18, color: tokens.terracotta),
-                                const SizedBox(width: 6),
-                                Flexible(
+                              if (drawerWidth >= 280) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: tokens.highlight,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
                                   child: Text(
-                                    '语料库',
-                                    overflow: TextOverflow.ellipsis,
+                                    '${state.entries.length} 篇',
                                     style: TextStyle(
-                                      color: tokens.textPrimary,
-                                      fontSize: 13,
+                                      fontSize: 12,
                                       fontWeight: FontWeight.w600,
+                                      color: tokens.terracotta,
                                     ),
                                   ),
                                 ),
                               ],
-                            ),
+                            ],
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      // 主编设置入口
-                      Expanded(
-                        child: InkWell(
-                          key: const ValueKey('ai_settings_button'),
-                          borderRadius: BorderRadius.circular(10),
-                          onTap: () {
-                            if (!widget.isPermanent) {
-                              Navigator.of(context).pop();
-                            }
-                            widget.onOpenSettings?.call();
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: tokens.card,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: tokens.cardBorder),
+                        const SizedBox(width: 6),
+                        // 新建随笔按钮
+                        if (isCompact)
+                          IconButton(
+                            key: const ValueKey('new_diary_button'),
+                            icon: const Icon(Icons.add, size: 20),
+                            color: tokens.terracotta,
+                            tooltip: '新建随笔',
+                            onPressed: () async {
+                              final cubit = context.read<DiaryListCubit>();
+                              final newEntry = await cubit.createEntry();
+                              widget.onEntryCreated?.call(newEntry);
+                              if (!widget.isPermanent && context.mounted) {
+                                Navigator.of(context).pop();
+                              }
+                            },
+                          )
+                        else
+                          ElevatedButton.icon(
+                            key: const ValueKey('new_diary_button'),
+                            onPressed: () async {
+                              final cubit = context.read<DiaryListCubit>();
+                              final newEntry = await cubit.createEntry();
+                              widget.onEntryCreated?.call(newEntry);
+                              if (!widget.isPermanent && context.mounted) {
+                                Navigator.of(context).pop();
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: tokens.terracotta,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              elevation: 0,
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.tune,
-                                    size: 18, color: tokens.textPrimary),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    '主编设置',
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: tokens.textPrimary,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text(
+                              '新建随笔',
+                              style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.bold),
                             ),
                           ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            );
-          },
-        ),
-      );
+
+                  // 搜索框
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isUltraCompact ? 8 : 16,
+                      vertical: 8,
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: tokens.card,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: tokens.cardBorder),
+                      ),
+                      child: TextField(
+                        key: const ValueKey('search_diary_input'),
+                        controller: _searchCtrl,
+                        style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                        onChanged: (text) {
+                          context.read<DiaryListCubit>().setSearchQuery(text);
+                        },
+                        decoration: InputDecoration(
+                          hintText: isUltraCompact ? '搜索...' : '搜索随笔内容或天气...',
+                          hintStyle: TextStyle(
+                            color: tokens.textMuted.withValues(alpha: 0.6),
+                            fontSize: 13,
+                          ),
+                          prefixIcon: Icon(Icons.search,
+                              size: 18, color: tokens.textMuted),
+                          suffixIcon: _searchCtrl.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 16),
+                                  onPressed: () {
+                                    _searchCtrl.clear();
+                                    context.read<DiaryListCubit>().setSearchQuery('');
+                                  },
+                                )
+                              : null,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                          border: InputBorder.none,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 4),
+                  Divider(color: tokens.cardBorder, height: 1),
+
+                  // 随笔列表视图
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? _buildEmptyState(context, tokens, state)
+                        : ListView.builder(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isUltraCompact ? 8 : 16,
+                              vertical: 12,
+                            ),
+                            itemCount: filtered.length,
+                            itemBuilder: (context, index) {
+                              final entry = filtered[index];
+                              final isActive = entry.id == state.activeEntryId;
+                              return _buildEntryCard(
+                                context: context,
+                                entry: entry,
+                                isActive: isActive,
+                                tokens: tokens,
+                                isUltraCompact: isUltraCompact,
+                              );
+                            },
+                          ),
+                  ),
+
+                  // 底部常驻功能区：语料库 与 设置
+                  Divider(color: tokens.cardBorder, height: 1),
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isUltraCompact ? 8 : 16,
+                      vertical: 10,
+                    ),
+                    child: isCompact
+                        ? Column(
+                            children: [
+                              _buildCorpusButton(tokens),
+                              const SizedBox(height: 6),
+                              _buildSettingsButton(tokens),
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              Expanded(child: _buildCorpusButton(tokens)),
+                              const SizedBox(width: 8),
+                              Expanded(child: _buildSettingsButton(tokens)),
+                            ],
+                          ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      ),
+    );
 
     if (widget.isPermanent) {
       return Container(
@@ -365,11 +339,91 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
     );
   }
 
+  Widget _buildCorpusButton(AppThemeTokens tokens) {
+    return InkWell(
+      key: const ValueKey('corpus_deck_button'),
+      borderRadius: BorderRadius.circular(10),
+      onTap: () {
+        if (!widget.isPermanent) {
+          Navigator.of(context).pop();
+        }
+        widget.onOpenCorpus?.call();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        decoration: BoxDecoration(
+          color: tokens.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: tokens.cardBorder),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.collections_bookmark_outlined,
+                size: 18, color: tokens.terracotta),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                '语料库',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: tokens.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsButton(AppThemeTokens tokens) {
+    return InkWell(
+      key: const ValueKey('ai_settings_button'),
+      borderRadius: BorderRadius.circular(10),
+      onTap: () {
+        if (!widget.isPermanent) {
+          Navigator.of(context).pop();
+        }
+        widget.onOpenSettings?.call();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        decoration: BoxDecoration(
+          color: tokens.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: tokens.cardBorder),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.tune, size: 18, color: tokens.textPrimary),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                '主编设置',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: tokens.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildEntryCard({
     required BuildContext context,
     required DiaryEntry entry,
     required bool isActive,
     required AppThemeTokens tokens,
+    bool isUltraCompact = false,
   }) {
     final previewText = entry.content.trim().isEmpty
         ? '空白随笔草稿...'
@@ -397,7 +451,7 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
               width: isActive ? 1.5 : 1.0,
             ),
           ),
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(isUltraCompact ? 8 : 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -412,14 +466,16 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
                   Expanded(
                     child: Text(
                       _formatDate(entry.metadata.recordedAt),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: isUltraCompact ? 11 : 12,
                         color: tokens.textMuted,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                  if (isActive)
+                  if (isActive && !isUltraCompact)
                     Container(
                       margin: const EdgeInsets.only(right: 4),
                       padding: const EdgeInsets.symmetric(
@@ -476,17 +532,18 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
               ),
               const SizedBox(height: 10),
 
-              // 底部状态徽章：字数、AI 梳理状态、追问轮数
-              Row(
+              // 底部状态徽章：字数、AI 梳理状态、追问轮数 (自适应换行，彻底杜绝溢出)
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(
                     '${entry.metadata.wordCount} 字',
                     style: TextStyle(fontSize: 11, color: tokens.textMuted),
                   ),
-                  const SizedBox(width: 8),
                   _buildStatusChip(entry.status, tokens),
-                  if (entry.inquiryHistory.isNotEmpty) ...[
-                    const SizedBox(width: 8),
+                  if (entry.inquiryHistory.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
@@ -511,7 +568,6 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
                         ],
                       ),
                     ),
-                  ],
                 ],
               ),
             ],

@@ -91,11 +91,14 @@ class _EditorialInspectorViewState extends State<EditorialInspectorView> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      '纽约客式温和润色与重塑',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                    Expanded(
+                      child: Text(
+                        '纽约客式温和润色与重塑',
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
                     ),
                   ],
                 ),
