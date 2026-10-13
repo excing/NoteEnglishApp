@@ -504,6 +504,128 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
     return WeatherBadgeDisplayMode.full;
   }
 
+  PreferredSizeWidget _buildStudioAppBar({
+    required BuildContext context,
+    required DiaryEntry entry,
+    required AppThemeTokens tokens,
+    required double screenWidth,
+    required bool isDesktop,
+    required bool isMobile,
+  }) {
+    return AppBar(
+      backgroundColor: tokens.canvas,
+      elevation: 0,
+      titleSpacing: 0,
+      leading: Builder(
+        builder: (scaffoldCtx) => IconButton(
+          key: const ValueKey('diary_drawer_button'),
+          icon: Icon(
+            isDesktop
+                ? (_isLeftSidebarOpen
+                    ? Icons.menu_open
+                    : Icons.menu_book_outlined)
+                : Icons.menu_book_outlined,
+          ),
+          tooltip: isDesktop
+              ? (_isLeftSidebarOpen ? '收起随笔手账' : '展开随笔手账')
+              : '随笔手账与管理',
+          onPressed: () {
+            if (isDesktop) {
+              setState(() {
+                _isLeftSidebarOpen = !_isLeftSidebarOpen;
+                _isLeftSidebarTemporarilyCollapsed = false;
+                _leftSidebarOverdrag = 0.0;
+                _leftSidebarReversePull = 0.0;
+              });
+            } else {
+              Scaffold.of(scaffoldCtx).openDrawer();
+            }
+          },
+        ),
+      ),
+      title: Builder(
+        builder: (ctx) {
+          final respDate =
+              _formatResponsiveDate(entry.metadata.recordedAt, screenWidth);
+          return Row(
+            children: [
+              if (respDate != null) ...[
+                Flexible(
+                  child: Text(
+                    respDate,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: tokens.textMuted,
+                      fontWeight: FontWeight.normal,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
+              WeatherPickerBadge(
+                displayMode: _resolveWeatherDisplayMode(screenWidth),
+                currentWeather: entry.metadata.weather,
+                detailedWeather: entry.metadata.detailedWeather,
+                location: entry.metadata.location,
+                temperature: entry.metadata.temperature,
+                apparentTemperature: entry.metadata.apparentTemperature,
+                humidity: entry.metadata.humidity,
+                isDay: entry.metadata.isDay,
+                onWeatherChanged: (w) {
+                  context.read<DiaryEditorialCubit>().updateWeather(w);
+                },
+                onAutoFetchWeather: () {
+                  context
+                      .read<DiaryEditorialCubit>()
+                      .fetchAndApplyRealtimeWeather();
+                },
+                onCityWeatherRequested: (cityName) {
+                  context
+                      .read<DiaryEditorialCubit>()
+                      .fetchAndApplyRealtimeWeather(cityName: cityName);
+                },
+              ),
+            ],
+          );
+        },
+      ),
+      actions: [
+        // 快捷新建随笔入口
+        IconButton(
+          key: const ValueKey('quick_new_diary_button'),
+          icon: const Icon(Icons.add_circle_outline, size: 20),
+          tooltip: '新建随笔',
+          onPressed: () async {
+            final listCubit = context.read<DiaryListCubit>();
+            final newEntry = await listCubit.createEntry();
+            _handleEntryCreated(newEntry);
+          },
+        ),
+        if (!isMobile)
+          IconButton(
+            key: const ValueKey('toggle_ai_sidebar_button'),
+            icon: Icon(
+              _isAiSidebarOpen
+                  ? Icons.auto_awesome
+                  : Icons.auto_awesome_outlined,
+              size: 20,
+            ),
+            tooltip: _isAiSidebarOpen ? '收起主编视窗' : '展开主编视窗',
+            onPressed: () {
+              setState(() {
+                _isAiSidebarOpen = !_isAiSidebarOpen;
+                _isRightSidebarTemporarilyCollapsed = false;
+                _rightSidebarOverdrag = 0.0;
+                _rightSidebarReversePull = 0.0;
+              });
+            },
+          ),
+        const SizedBox(width: 4),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = AppThemeTokens.of(context);
@@ -569,11 +691,11 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
               context.read<DiaryEditorialCubit>().requestAiAnalysis();
             },
           },
-          child: Scaffold(
-            backgroundColor: tokens.canvas,
-            drawer: isDesktop
-                ? null
-                : DiaryManagementDrawer(
+          child: isDesktop
+              ? _buildDesktopLayout(context, state, tokens, screenWidth)
+              : Scaffold(
+                  backgroundColor: tokens.canvas,
+                  drawer: DiaryManagementDrawer(
                     isPermanent: false,
                     onOpenCorpus: () => _openCorpus(context),
                     onOpenSettings: () => _openSettings(context),
@@ -581,130 +703,24 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
                     onEntryCreated: _handleEntryCreated,
                     onEntryDeleted: _handleEntryDeleted,
                   ),
-            appBar: AppBar(
-              backgroundColor: tokens.canvas,
-              elevation: 0,
-              titleSpacing: 0,
-              leading: Builder(
-                builder: (scaffoldCtx) => IconButton(
-                  key: const ValueKey('diary_drawer_button'),
-                  icon: Icon(
-                    isDesktop
-                        ? (_isLeftSidebarOpen
-                            ? Icons.menu_open
-                            : Icons.menu_book_outlined)
-                        : Icons.menu_book_outlined,
+                  appBar: _buildStudioAppBar(
+                    context: context,
+                    entry: entry,
+                    tokens: tokens,
+                    screenWidth: screenWidth,
+                    isDesktop: false,
+                    isMobile: isMobile,
                   ),
-                  tooltip: isDesktop
-                      ? (_isLeftSidebarOpen ? '收起随笔手账' : '展开随笔手账')
-                      : '随笔手账与管理',
-                  onPressed: () {
-                    if (isDesktop) {
-                      setState(() {
-                        _isLeftSidebarOpen = !_isLeftSidebarOpen;
-                        _isLeftSidebarTemporarilyCollapsed = false;
-                        _leftSidebarOverdrag = 0.0;
-                        _leftSidebarReversePull = 0.0;
-                      });
-                    } else {
-                      Scaffold.of(scaffoldCtx).openDrawer();
-                    }
-                  },
+                  body: isTablet
+                      ? _buildTabletLayout(context, state, tokens, screenWidth)
+                      : _buildMobileLayout(context, state, tokens),
                 ),
-              ),
-              title: Builder(
-                builder: (ctx) {
-                  final respDate = _formatResponsiveDate(
-                      entry.metadata.recordedAt, screenWidth);
-                  return Row(
-                    children: [
-                      if (respDate != null) ...[
-                        Flexible(
-                          child: Text(
-                            respDate,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: tokens.textMuted,
-                              fontWeight: FontWeight.normal,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                      ],
-                      WeatherPickerBadge(
-                        displayMode: _resolveWeatherDisplayMode(screenWidth),
-                        currentWeather: entry.metadata.weather,
-                        detailedWeather: entry.metadata.detailedWeather,
-                        location: entry.metadata.location,
-                        temperature: entry.metadata.temperature,
-                        apparentTemperature: entry.metadata.apparentTemperature,
-                        humidity: entry.metadata.humidity,
-                        isDay: entry.metadata.isDay,
-                        onWeatherChanged: (w) {
-                          context.read<DiaryEditorialCubit>().updateWeather(w);
-                        },
-                        onAutoFetchWeather: () {
-                          context
-                              .read<DiaryEditorialCubit>()
-                              .fetchAndApplyRealtimeWeather();
-                        },
-                        onCityWeatherRequested: (cityName) {
-                          context
-                              .read<DiaryEditorialCubit>()
-                              .fetchAndApplyRealtimeWeather(cityName: cityName);
-                        },
-                      ),
-                    ],
-                  );
-                },
-              ),
-              actions: [
-                // 快捷新建随笔入口
-                IconButton(
-                  key: const ValueKey('quick_new_diary_button'),
-                  icon: const Icon(Icons.add_circle_outline, size: 20),
-                  tooltip: '新建随笔',
-                  onPressed: () async {
-                    final listCubit = context.read<DiaryListCubit>();
-                    final newEntry = await listCubit.createEntry();
-                    _handleEntryCreated(newEntry);
-                  },
-                ),
-                if (!isMobile)
-                  IconButton(
-                    key: const ValueKey('toggle_ai_sidebar_button'),
-                    icon: Icon(
-                      _isAiSidebarOpen
-                          ? Icons.auto_awesome
-                          : Icons.auto_awesome_outlined,
-                      size: 20,
-                    ),
-                    tooltip: _isAiSidebarOpen ? '收起主编视窗' : '展开主编视窗',
-                    onPressed: () {
-                      setState(() {
-                        _isAiSidebarOpen = !_isAiSidebarOpen;
-                        _isRightSidebarTemporarilyCollapsed = false;
-                        _rightSidebarOverdrag = 0.0;
-                        _rightSidebarReversePull = 0.0;
-                      });
-                    },
-                  ),
-                const SizedBox(width: 4),
-              ],
-            ),
-            body: isDesktop
-                ? _buildDesktopLayout(context, state, tokens, screenWidth)
-                : (isTablet
-                    ? _buildTabletLayout(context, state, tokens, screenWidth)
-                    : _buildMobileLayout(context, state, tokens)),
-          ),
         );
       },
     );
   }
 
-  /// 桌面端三栏布局 (默认显示左边栏与主区域，点击梳理右边栏显示，左右边栏支持自由拖拽调宽，主区域保持最小可视宽度)
+  /// 桌面端布局：左边栏独立全高显示，顶栏移至右侧工作台顶部，顶栏下方仅包含主编辑区与右边栏
   Widget _buildDesktopLayout(
     BuildContext context,
     DiaryEditorialState state,
@@ -745,17 +761,20 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
 
     return Row(
       children: [
-        // 1. 左边栏 (笔记列表) - 默认常驻显示，支持快捷折叠收起与用户手动拖拽调宽
+        // 1. 左边栏 (笔记列表) - 独立全高显示，不被顶栏压制，支持快捷折叠与用户拖拽调宽
         if (showLeftDrawer)
           SizedBox(
             width: effectiveLeftWidth,
-            child: DiaryManagementDrawer(
-              isPermanent: true,
-              onOpenCorpus: () => _openCorpus(context),
-              onOpenSettings: () => _openSettings(context),
-              onSelectEntry: _handleSelectEntry,
-              onEntryCreated: _handleEntryCreated,
-              onEntryDeleted: _handleEntryDeleted,
+            child: Material(
+              color: tokens.canvas,
+              child: DiaryManagementDrawer(
+                isPermanent: true,
+                onOpenCorpus: () => _openCorpus(context),
+                onOpenSettings: () => _openSettings(context),
+                onSelectEntry: _handleSelectEntry,
+                onEntryCreated: _handleEntryCreated,
+                onEntryDeleted: _handleEntryDeleted,
+              ),
             ),
           ),
         if (_isLeftSidebarOpen)
@@ -766,40 +785,59 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
             onReset: _resetLeftSidebarWidth,
             onDragEnd: _onLeftDragEnd,
           ),
-        // 2. 主区域 (编辑稿纸与工具条) - 保持最小可视宽度并自适应占据剩余空间
+        // 2. 右侧主体工作区 - 包含顶栏 AppBar，顶栏下方严格仅包含主区域与右边栏
         Expanded(
-          child: Container(
-            constraints: const BoxConstraints(
-              minWidth: LayoutBreakpoints.mainAreaMinWidth,
+          child: Scaffold(
+            backgroundColor: tokens.canvas,
+            appBar: _buildStudioAppBar(
+              context: context,
+              entry: state.entry,
+              tokens: tokens,
+              screenWidth: screenWidth,
+              isDesktop: true,
+              isMobile: false,
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            child: Column(
+            body: Row(
               children: [
-                Expanded(child: _buildWritingArea(tokens)),
-                _buildBottomToolbar(context, state, tokens, isMobile: false),
+                // 主区域 (编辑稿纸与工具条) - 保持最小可视宽度并自适应占据剩余空间
+                Expanded(
+                  child: Container(
+                    constraints: const BoxConstraints(
+                      minWidth: LayoutBreakpoints.mainAreaMinWidth,
+                    ),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    child: Column(
+                      children: [
+                        Expanded(child: _buildWritingArea(tokens)),
+                        _buildBottomToolbar(context, state, tokens, isMobile: false),
+                      ],
+                    ),
+                  ),
+                ),
+                // 右边栏手柄与 AI 梳理视窗
+                if (_isAiSidebarOpen)
+                  PaneResizeHandle(
+                    key: const ValueKey('right_pane_resize_handle'),
+                    tooltip: '拖拽调整AI视窗宽度，双击恢复默认',
+                    onDelta: (delta) =>
+                        _onRightSidebarResize(delta, screenWidth, isDesktop: true),
+                    onReset: _resetRightSidebarWidth,
+                    onDragEnd: _onRightDragEnd,
+                  ),
+                if (showRightInspector)
+                  SizedBox(
+                    width: effectiveRightWidth,
+                    child: _buildRightAiSidebar(
+                      context,
+                      state,
+                      tokens,
+                    ),
+                  ),
               ],
             ),
           ),
         ),
-        // 3. 右边栏 (主编梳理与追问视窗) - 点击梳理显示，支持手动拖拽调宽与随时收起
-        if (_isAiSidebarOpen)
-          PaneResizeHandle(
-            key: const ValueKey('right_pane_resize_handle'),
-            tooltip: '拖拽调整AI视窗宽度，双击恢复默认',
-            onDelta: (delta) =>
-                _onRightSidebarResize(delta, screenWidth, isDesktop: true),
-            onReset: _resetRightSidebarWidth,
-            onDragEnd: _onRightDragEnd,
-          ),
-        if (showRightInspector)
-          SizedBox(
-            width: effectiveRightWidth,
-            child: _buildRightAiSidebar(
-              context,
-              state,
-              tokens,
-            ),
-          ),
       ],
     );
   }

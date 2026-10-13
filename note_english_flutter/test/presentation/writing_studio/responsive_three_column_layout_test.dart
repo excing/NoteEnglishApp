@@ -480,5 +480,30 @@ void main() {
       expect(compressedRightWidth, lessThan(380.0));
       expect(compressedRightWidth, greaterThanOrEqualTo(200.0)); // 处于修改后的 200 最小限制范围内
     });
+
+    testWidgets('桌面尺寸下，左边栏独立于顶栏且全高展示，顶栏仅覆盖主区域与右边栏',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(NoteEnglishApp(initialEntry: testEntry));
+      await tester.pumpAndSettle();
+
+      // 验证左边栏顶部坐标为 y = 0 (全高从顶部贯穿，不在 AppBar 下方)
+      final drawerFinder = find.byType(DiaryManagementDrawer);
+      expect(drawerFinder, findsOneWidget);
+      final drawerTopLeft = tester.getTopLeft(drawerFinder);
+      expect(drawerTopLeft.dy, equals(0.0));
+      expect(drawerTopLeft.dx, equals(0.0));
+
+      // 验证顶栏 AppBar 的左侧起始 x 坐标大于 0 (即 AppBar 位于左边栏右侧，并未覆盖左边栏)
+      final appBarFinder = find.byType(AppBar);
+      expect(appBarFinder, findsOneWidget);
+      final appBarTopLeft = tester.getTopLeft(appBarFinder);
+      expect(appBarTopLeft.dx, greaterThan(0.0));
+      expect(appBarTopLeft.dx, equals(tester.getSize(drawerFinder).width + 8.0)); // 包含 8px 手柄宽度
+    });
   });
 }
+
