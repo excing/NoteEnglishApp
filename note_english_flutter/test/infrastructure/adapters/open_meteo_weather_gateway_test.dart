@@ -32,6 +32,10 @@ void main() {
               'longitude': 116.4,
               'current': {
                 'temperature_2m': 18.5,
+                'apparent_temperature': 17.8,
+                'relative_humidity_2m': 68,
+                'precipitation': 1.2,
+                'is_day': 1,
                 'wind_speed_10m': 12.0,
                 'weather_code': 61,
               },
@@ -46,9 +50,14 @@ void main() {
 
       expect(report.condition, WeatherCondition.rainy);
       expect(report.temperature, 18.5);
+      expect(report.apparentTemperature, 17.8);
+      expect(report.relativeHumidity, 68);
+      expect(report.precipitation, 1.2);
+      expect(report.isDay, isTrue);
       expect(report.weatherCode, 61);
       expect(report.locationName, '北京');
       expect(report.displayDescription, contains('19°C'));
+      expect(report.comfortLabel, '微凉清爽');
     });
 
     test('fetches weather by city name via geocoding', () async {

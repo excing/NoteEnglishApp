@@ -62,10 +62,74 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
     }
   }
 
+  String? _formatResponsiveDate(DateTime dt, double width) {
+    if (width < 320) {
+      return null;
+    }
+    try {
+      if (width < 380) {
+        return DateFormat('M/d', 'zh_CN').format(dt);
+      } else if (width < 500) {
+        return DateFormat('M月d日', 'zh_CN').format(dt);
+      } else if (width < 700) {
+        return DateFormat('M月d日 E', 'zh_CN').format(dt);
+      }
+      return DateFormat('MM月dd日 E · HH:mm', 'zh_CN').format(dt);
+    } catch (_) {
+      final m = dt.month.toString();
+      final d = dt.day.toString();
+      if (width < 380) return '$m/$d';
+      if (width < 500) return '$m月$d日';
+      final h = dt.hour.toString().padLeft(2, '0');
+      final min = dt.minute.toString().padLeft(2, '0');
+      return '$m月$d日 · $h:$min';
+    }
+  }
+
+  void _openCorpus(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => BlocProvider(
+          create: (_) => CorpusDeckCubit(
+            corpusRepository: sl<ICorpusRepository>(),
+          ),
+          child: const CorpusDeckPage(),
+        ),
+      ),
+    );
+  }
+
+  void _openSettings(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => BlocProvider.value(
+        value: context.read<AiSettingsCubit>(),
+        child: const AiSettingsDialog(),
+      ),
+    );
+  }
+
+  /// 依据屏幕宽度阶梯式省略天气显示元素，保证字号永不缩水
+  WeatherBadgeDisplayMode _resolveWeatherDisplayMode(double width) {
+    if (width < 280) {
+      // 极窄屏幕（< 280px）：字号不缩小，仅保留天气图标胶囊
+      return WeatherBadgeDisplayMode.iconOnly;
+    } else if (width < 360) {
+      // 较窄屏幕（280px ~ 360px）：省略天气名称与城市，仅保留 图标 + 温度 (如 ⛅ 23°C)
+      return WeatherBadgeDisplayMode.compact;
+    } else if (width < 480) {
+      // 紧凑屏幕（360px ~ 480px）：省略城市，保留 图标 + 温度 + 天气描述 (如 ⛅ 23°C 多云)
+      return WeatherBadgeDisplayMode.noLocation;
+    }
+    // 宽阔屏幕（>= 480px）：完整展示 (如 ⛅ 23°C 多云 · 大理)
+    return WeatherBadgeDisplayMode.full;
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = AppThemeTokens.of(context);
-    final isDesktop = MediaQuery.of(context).size.width >= 900;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= 900;
 
     return BlocConsumer<DiaryEditorialCubit, DiaryEditorialState>(
       listener: (context, state) {
@@ -156,6 +220,7 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
             appBar: AppBar(
               backgroundColor: tokens.canvas,
               elevation: 0,
+              titleSpacing: 0,
               leading: Builder(
                 builder: (scaffoldCtx) => IconButton(
                   key: const ValueKey('diary_drawer_button'),
@@ -166,38 +231,52 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
                   },
                 ),
               ),
-              title: Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      _formatDate(entry.metadata.recordedAt),
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: tokens.textMuted,
-                        fontWeight: FontWeight.normal,
+              title: Builder(
+                builder: (ctx) {
+                  final respDate = _formatResponsiveDate(
+                      entry.metadata.recordedAt, screenWidth);
+                  return Row(
+                    children: [
+                      if (respDate != null) ...[
+                        Flexible(
+                          child: Text(
+                            respDate,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: tokens.textMuted,
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                      WeatherPickerBadge(
+                        displayMode: _resolveWeatherDisplayMode(screenWidth),
+                        currentWeather: entry.metadata.weather,
+                        detailedWeather: entry.metadata.detailedWeather,
+                        location: entry.metadata.location,
+                        temperature: entry.metadata.temperature,
+                        apparentTemperature: entry.metadata.apparentTemperature,
+                        humidity: entry.metadata.humidity,
+                        isDay: entry.metadata.isDay,
+                        onWeatherChanged: (w) {
+                          context.read<DiaryEditorialCubit>().updateWeather(w);
+                        },
+                        onAutoFetchWeather: () {
+                          context
+                              .read<DiaryEditorialCubit>()
+                              .fetchAndApplyRealtimeWeather();
+                        },
+                        onCityWeatherRequested: (cityName) {
+                          context
+                              .read<DiaryEditorialCubit>()
+                              .fetchAndApplyRealtimeWeather(cityName: cityName);
+                        },
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  WeatherPickerBadge(
-                    currentWeather: entry.metadata.weather,
-                    location: entry.metadata.location,
-                    onWeatherChanged: (w) {
-                      context.read<DiaryEditorialCubit>().updateWeather(w);
-                    },
-                    onAutoFetchWeather: () {
-                      context
-                          .read<DiaryEditorialCubit>()
-                          .fetchAndApplyRealtimeWeather();
-                    },
-                    onCityWeatherRequested: (cityName) {
-                      context
-                          .read<DiaryEditorialCubit>()
-                          .fetchAndApplyRealtimeWeather(cityName: cityName);
-                    },
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
               actions: [
                 // 快捷新建随笔入口
@@ -215,47 +294,83 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
                   },
                 ),
                 // 语料库入口
-                TextButton.icon(
-                  key: const ValueKey('corpus_deck_button'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: tokens.textPrimary,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                if (screenWidth >= 640)
+                  TextButton.icon(
+                    key: const ValueKey('corpus_deck_button'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: tokens.textPrimary,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                    ),
+                    icon: const Icon(Icons.collections_bookmark_outlined, size: 18),
+                    label: const Text('语料库', style: TextStyle(fontSize: 13)),
+                    onPressed: () => _openCorpus(context),
+                  )
+                else if (screenWidth >= 340)
+                  IconButton(
+                    key: const ValueKey('corpus_deck_button'),
+                    icon: const Icon(Icons.collections_bookmark_outlined, size: 20),
+                    tooltip: '语料库',
+                    onPressed: () => _openCorpus(context),
                   ),
-                  icon: const Icon(Icons.collections_bookmark_outlined, size: 18),
-                  label: const Text('语料库', style: TextStyle(fontSize: 13)),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => BlocProvider(
-                          create: (_) => CorpusDeckCubit(
-                            corpusRepository: sl<ICorpusRepository>(),
-                          ),
-                          child: const CorpusDeckPage(),
+                // 设置入口
+                if (screenWidth >= 640)
+                  TextButton.icon(
+                    key: const ValueKey('ai_settings_button'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: tokens.textPrimary,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                    ),
+                    icon: const Icon(Icons.tune, size: 18),
+                    label: const Text('设置', style: TextStyle(fontSize: 13)),
+                    onPressed: () => _openSettings(context),
+                  )
+                else if (screenWidth >= 340)
+                  IconButton(
+                    key: const ValueKey('ai_settings_button'),
+                    icon: const Icon(Icons.tune, size: 20),
+                    tooltip: '设置',
+                    onPressed: () => _openSettings(context),
+                  ),
+                // 极小屏幕 (< 340px) 紧凑折叠为更多菜单
+                if (screenWidth < 340)
+                  PopupMenuButton<String>(
+                    key: const ValueKey('appbar_more_menu'),
+                    icon: const Icon(Icons.more_vert, size: 20),
+                    tooltip: '更多功能',
+                    onSelected: (val) {
+                      if (val == 'corpus') {
+                        _openCorpus(context);
+                      } else if (val == 'settings') {
+                        _openSettings(context);
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      PopupMenuItem(
+                        key: const ValueKey('corpus_deck_button'),
+                        value: 'corpus',
+                        child: Row(
+                          children: [
+                            Icon(Icons.collections_bookmark_outlined,
+                                size: 18, color: tokens.textPrimary),
+                            const SizedBox(width: 8),
+                            const Text('语料库'),
+                          ],
                         ),
                       ),
-                    );
-                  },
-                ),
-                // 设置入口
-                TextButton.icon(
-                  key: const ValueKey('ai_settings_button'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: tokens.textPrimary,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                  ),
-                  icon: const Icon(Icons.tune, size: 18),
-                  label: const Text('设置', style: TextStyle(fontSize: 13)),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (ctx) => BlocProvider.value(
-                        value: context.read<AiSettingsCubit>(),
-                        child: const AiSettingsDialog(),
+                      PopupMenuItem(
+                        key: const ValueKey('ai_settings_button'),
+                        value: 'settings',
+                        child: Row(
+                          children: [
+                            Icon(Icons.tune, size: 18, color: tokens.textPrimary),
+                            const SizedBox(width: 8),
+                            const Text('设置'),
+                          ],
+                        ),
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(width: 8),
+                    ],
+                  ),
+                const SizedBox(width: 4),
               ],
             ),
             body: isDesktop
@@ -421,9 +536,13 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
     AppThemeTokens tokens,
   ) {
     final isAnalyzing = state.status == DiaryAnalysisStatus.analyzing;
+    final screenWidth = MediaQuery.of(context).size.width;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: screenWidth < 340 ? 10 : 16,
+        vertical: 12,
+      ),
       decoration: BoxDecoration(
         color: tokens.canvas,
         border: Border(top: BorderSide(color: tokens.cardBorder)),
@@ -433,10 +552,20 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              '${state.entry.metadata.wordCount} 字 · 自动存盘',
-              style: TextStyle(fontSize: 13, color: tokens.textMuted),
+            Flexible(
+              child: Text(
+                screenWidth < 280
+                    ? '${state.entry.metadata.wordCount} 字'
+                    : '${state.entry.metadata.wordCount} 字 · 自动存盘',
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: screenWidth < 300 ? 11 : 13,
+                  color: tokens.textMuted,
+                ),
+              ),
             ),
+            const SizedBox(width: 8),
             ElevatedButton.icon(
               key: const ValueKey('call_editor_button'),
               onPressed: isAnalyzing
@@ -450,8 +579,10 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: tokens.terracotta,
                 foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                padding: EdgeInsets.symmetric(
+                  horizontal: screenWidth < 340 ? 12 : 18,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -468,8 +599,13 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
                     )
                   : const Text('✨', style: TextStyle(fontSize: 14)),
               label: Text(
-                isAnalyzing ? '主编研读中...' : '呼叫主编梳理',
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                isAnalyzing
+                    ? '构思中...'
+                    : (screenWidth < 300 ? '梳理' : '呼叫主编梳理'),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: screenWidth < 340 ? 13 : 14,
+                ),
               ),
             ),
           ],

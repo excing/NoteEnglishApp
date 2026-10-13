@@ -99,7 +99,10 @@ class DiaryEditorialCubit extends Cubit<DiaryEditorialState> {
   /// 切换天气
   void updateWeather(WeatherCondition weather) {
     final updated = state.entry.copyWith(
-      metadata: state.entry.metadata.copyWith(weather: weather),
+      metadata: state.entry.metadata.copyWith(
+        weather: weather,
+        detailedWeather: weather.label,
+      ),
     );
     emit(state.copyWith(entry: updated));
     _diaryRepository.saveEntry(updated);
@@ -119,6 +122,11 @@ class DiaryEditorialCubit extends Cubit<DiaryEditorialState> {
         metadata: state.entry.metadata.copyWith(
           weather: report.condition,
           location: report.locationName,
+          temperature: report.temperature,
+          apparentTemperature: report.apparentTemperature,
+          humidity: report.relativeHumidity,
+          isDay: report.isDay,
+          detailedWeather: report.effectiveDetailedDescription,
         ),
       );
       emit(state.copyWith(entry: updated, errorMessage: null));

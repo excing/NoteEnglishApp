@@ -193,6 +193,10 @@ void main() {
           (_) async => CurrentWeatherReport(
             condition: WeatherCondition.sunny,
             temperature: 24.5,
+            apparentTemperature: 23.8,
+            relativeHumidity: 50,
+            precipitation: 0.0,
+            isDay: true,
             weatherCode: 0,
             locationName: 'Shanghai',
             latitude: 31.23,
@@ -213,7 +217,11 @@ void main() {
       expect: () => [
         isA<DiaryEditorialState>()
             .having((s) => s.entry.metadata.weather, 'weather', WeatherCondition.sunny)
-            .having((s) => s.entry.metadata.location, 'location', 'Shanghai'),
+            .having((s) => s.entry.metadata.location, 'location', 'Shanghai')
+            .having((s) => s.entry.metadata.temperature, 'temperature', 24.5)
+            .having((s) => s.entry.metadata.apparentTemperature, 'apparentTemperature', 23.8)
+            .having((s) => s.entry.metadata.humidity, 'humidity', 50)
+            .having((s) => s.entry.metadata.isDay, 'isDay', isTrue),
       ],
       verify: (_) {
         verify(() => diaryRepo.saveEntry(any())).called(1);

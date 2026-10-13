@@ -54,8 +54,20 @@ ${AiContracts.diaryAnalysisSchemaInstruction}
 
     final dateFormatted =
         DateFormat('yyyy-MM-dd HH:mm').format(metadata.recordedAt);
-    final weatherDesc =
-        '${metadata.weather.icon} ${metadata.weather.label}';
+    final weatherIcon = metadata.weather.getIcon(isDay: metadata.isDay ?? true);
+    final weatherName = metadata.detailedWeather ?? metadata.weather.label;
+    final StringBuffer weatherBuffer =
+        StringBuffer('$weatherIcon $weatherName');
+    if (metadata.temperature != null) {
+      final details = <String>[
+        '${metadata.temperature!.round()}°C',
+        if (metadata.apparentTemperature != null)
+          '体感 ${metadata.apparentTemperature!.round()}°C',
+        if (metadata.humidity != null) '湿度 ${metadata.humidity}%',
+      ];
+      weatherBuffer.write(' (${details.join('，')})');
+    }
+    final weatherDesc = weatherBuffer.toString();
 
     final userMessage = '''
 【随笔元数据】

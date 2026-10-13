@@ -8,6 +8,9 @@ class MainFlutterWindow: NSWindow {
     self.contentViewController = flutterViewController
     self.setFrame(windowFrame, display: true)
 
+    // 限制桌面端窗口最小尺寸（360x520），保证人机工程学体验，防止极端挤压
+    self.minSize = NSSize(width: 360, height: 520)
+
     RegisterGeneratedPlugins(registry: flutterViewController)
 
     super.awakeFromNib()

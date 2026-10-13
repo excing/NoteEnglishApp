@@ -38,7 +38,8 @@ class OpenMeteoWeatherGateway implements IWeatherGateway {
         queryParameters: {
           'latitude': latitude,
           'longitude': longitude,
-          'current': 'temperature_2m,wind_speed_10m,weather_code',
+          'current':
+              'temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,is_day,wind_speed_10m,weather_code',
           'timezone': 'auto',
         },
       );
@@ -50,6 +51,11 @@ class OpenMeteoWeatherGateway implements IWeatherGateway {
 
       final current = data['current'] as Map<String, dynamic>? ?? {};
       final temp = (current['temperature_2m'] as num?)?.toDouble();
+      final apparentTemp =
+          (current['apparent_temperature'] as num?)?.toDouble();
+      final humidity = (current['relative_humidity_2m'] as num?)?.toInt();
+      final precip = (current['precipitation'] as num?)?.toDouble();
+      final isDay = (current['is_day'] as num?)?.toInt() != 0;
       final wind = (current['wind_speed_10m'] as num?)?.toDouble();
       final code = (current['weather_code'] as num?)?.toInt() ?? 0;
 
@@ -61,6 +67,10 @@ class OpenMeteoWeatherGateway implements IWeatherGateway {
       return CurrentWeatherReport(
         condition: condition,
         temperature: temp,
+        apparentTemperature: apparentTemp,
+        relativeHumidity: humidity,
+        precipitation: precip,
+        isDay: isDay,
         weatherCode: code,
         windSpeed: wind,
         locationName: locationName,
