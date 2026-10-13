@@ -150,5 +150,32 @@ void main() {
             ));
       },
     );
+
+    blocTest<DiaryEditorialCubit, DiaryEditorialState>(
+      'should switch and load new entry state when loadEntry is called',
+      build: () => DiaryEditorialCubit(
+        diaryRepository: diaryRepo,
+        corpusRepository: corpusRepo,
+        configRepository: configRepo,
+        aiGateway: aiGateway,
+        initialEntry: initialEntry,
+      ),
+      act: (cubit) {
+        final newEntry = DiaryEntry.create(
+          content: 'Brand new loaded note.',
+          metadata: DiaryMetadata(
+            recordedAt: DateTime(2026, 10, 12, 10, 0),
+            weather: WeatherCondition.sunny,
+            wordCount: 4,
+          ),
+        );
+        cubit.loadEntry(newEntry);
+      },
+      expect: () => [
+        isA<DiaryEditorialState>()
+            .having((s) => s.entry.content, 'content', 'Brand new loaded note.')
+            .having((s) => s.status, 'status', DiaryAnalysisStatus.draft),
+      ],
+    );
   });
 }

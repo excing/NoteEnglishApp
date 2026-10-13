@@ -83,6 +83,14 @@ class DiaryEditorialCubit extends Cubit<DiaryEditorialState> {
     _diaryRepository.saveEntry(updated);
   }
 
+  /// 切换当前正在编辑的随笔 (无缝载入)
+  void loadEntry(DiaryEntry newEntry) {
+    emit(DiaryEditorialState(
+      entry: newEntry,
+      status: newEntry.status,
+    ));
+  }
+
   /// 切换天气
   void updateWeather(WeatherCondition weather) {
     final updated = state.entry.copyWith(

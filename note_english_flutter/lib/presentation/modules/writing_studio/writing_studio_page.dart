@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:note_english_flutter/application/corpus/corpus_deck_cubit.dart';
+import 'package:note_english_flutter/application/diary/diary_list_cubit.dart';
 import 'package:note_english_flutter/application/editorial/diary_editorial_cubit.dart';
 import 'package:note_english_flutter/application/inquiry/inquiry_cubit.dart';
 import 'package:note_english_flutter/application/settings/ai_settings_cubit.dart';
@@ -12,6 +13,7 @@ import 'package:note_english_flutter/domain/models/diary/diary_entry.dart';
 import 'package:note_english_flutter/domain/repositories/corpus_repository.dart';
 import 'package:note_english_flutter/presentation/common_widgets/weather_picker_badge.dart';
 import 'package:note_english_flutter/presentation/modules/corpus_deck/corpus_deck_page.dart';
+import 'package:note_english_flutter/presentation/modules/diary_management/diary_management_drawer.dart';
 import 'package:note_english_flutter/presentation/modules/editorial_inspector/editorial_inspector_view.dart';
 import 'package:note_english_flutter/presentation/modules/settings_studio/ai_settings_dialog.dart';
 
@@ -26,14 +28,18 @@ class WritingStudioPage extends StatefulWidget {
 class _WritingStudioPageState extends State<WritingStudioPage> {
   late TextEditingController _textCtrl;
   final FocusNode _focusNode = FocusNode();
+  String? _currentEntryId;
 
   @override
   void initState() {
     super.initState();
     final cubit = context.read<DiaryEditorialCubit>();
+    _currentEntryId = cubit.state.entry.id;
     _textCtrl = TextEditingController(text: cubit.state.entry.content);
     _textCtrl.addListener(() {
-      context.read<DiaryEditorialCubit>().updateContent(_textCtrl.text);
+      if (_textCtrl.text != context.read<DiaryEditorialCubit>().state.entry.content) {
+        context.read<DiaryEditorialCubit>().updateContent(_textCtrl.text);
+      }
     });
   }
 
@@ -63,6 +69,16 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
 
     return BlocConsumer<DiaryEditorialCubit, DiaryEditorialState>(
       listener: (context, state) {
+        if (state.entry.id != _currentEntryId) {
+          _currentEntryId = state.entry.id;
+          if (_textCtrl.text != state.entry.content) {
+            _textCtrl.text = state.entry.content;
+            _textCtrl.selection = TextSelection.fromPosition(
+              TextPosition(offset: _textCtrl.text.length),
+            );
+          }
+        }
+
         if (state.errorMessage != null) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
@@ -104,9 +120,52 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
           },
           child: Scaffold(
             backgroundColor: tokens.canvas,
+            drawer: DiaryManagementDrawer(
+              onSelectEntry: (selected) {
+                context.read<DiaryEditorialCubit>().loadEntry(selected);
+                context.read<InquiryCubit>().resetHistory(selected.inquiryHistory);
+                context.read<DiaryListCubit>().setActiveEntryId(selected.id);
+              },
+              onEntryCreated: (created) {
+                context.read<DiaryEditorialCubit>().loadEntry(created);
+                context.read<InquiryCubit>().resetHistory([]);
+                context.read<DiaryListCubit>().setActiveEntryId(created.id);
+                _focusNode.requestFocus();
+              },
+              onEntryDeleted: (deletedId) async {
+                final editorialCubit = context.read<DiaryEditorialCubit>();
+                if (editorialCubit.state.entry.id == deletedId) {
+                  final listCubit = context.read<DiaryListCubit>();
+                  final remaining = listCubit.state.entries
+                      .where((e) => e.id != deletedId)
+                      .toList();
+                  if (remaining.isNotEmpty) {
+                    final nextEntry = remaining.first;
+                    editorialCubit.loadEntry(nextEntry);
+                    context.read<InquiryCubit>().resetHistory(nextEntry.inquiryHistory);
+                    listCubit.setActiveEntryId(nextEntry.id);
+                  } else {
+                    final fresh = await listCubit.createEntry();
+                    editorialCubit.loadEntry(fresh);
+                    context.read<InquiryCubit>().resetHistory([]);
+                    listCubit.setActiveEntryId(fresh.id);
+                  }
+                }
+              },
+            ),
             appBar: AppBar(
               backgroundColor: tokens.canvas,
               elevation: 0,
+              leading: Builder(
+                builder: (scaffoldCtx) => IconButton(
+                  key: const ValueKey('diary_drawer_button'),
+                  icon: const Icon(Icons.menu_book_outlined),
+                  tooltip: '随笔手账与管理',
+                  onPressed: () {
+                    Scaffold.of(scaffoldCtx).openDrawer();
+                  },
+                ),
+              ),
               title: Row(
                 children: [
                   Flexible(
@@ -130,6 +189,20 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
                 ],
               ),
               actions: [
+                // 快捷新建随笔入口
+                IconButton(
+                  key: const ValueKey('quick_new_diary_button'),
+                  icon: const Icon(Icons.add_circle_outline, size: 20),
+                  tooltip: '新建随笔',
+                  onPressed: () async {
+                    final listCubit = context.read<DiaryListCubit>();
+                    final newEntry = await listCubit.createEntry();
+                    context.read<DiaryEditorialCubit>().loadEntry(newEntry);
+                    context.read<InquiryCubit>().resetHistory([]);
+                    listCubit.setActiveEntryId(newEntry.id);
+                    _focusNode.requestFocus();
+                  },
+                ),
                 // 语料库入口
                 TextButton.icon(
                   key: const ValueKey('corpus_deck_button'),

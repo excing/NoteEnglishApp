@@ -69,6 +69,15 @@ class InquiryCubit extends Cubit<InquiryState> {
         _corpusService = corpusService,
         super(InquiryState(history: initialHistory));
 
+  /// 切换随笔时，重置追问对话流
+  void resetHistory(List<InquiryTurn> newHistory) {
+    emit(InquiryState(
+      history: newHistory,
+      isLoading: false,
+      errorMessage: null,
+    ));
+  }
+
   /// 向 AI 发起情境追问
   Future<void> askQuestion({
     required String question,
