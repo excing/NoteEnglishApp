@@ -187,5 +187,26 @@ void main() {
       expect(find.textContaining('晴天'), findsNothing);
       expect(find.textContaining('大理'), findsNothing);
     });
+
+    testWidgets('shows current location in auto fetch weather menu label when location is set', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppThemeTokens.createThemeData(isDark: false),
+          home: Scaffold(
+            body: WeatherPickerBadge(
+              currentWeather: WeatherCondition.sunny,
+              location: '深圳',
+              onWeatherChanged: (_) {},
+              onAutoFetchWeather: () {},
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(WeatherPickerBadge));
+      await tester.pumpAndSettle();
+
+      expect(find.text('自动获取实时天气 (深圳)'), findsOneWidget);
+    });
   });
 }

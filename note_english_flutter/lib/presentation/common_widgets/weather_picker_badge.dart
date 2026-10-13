@@ -301,7 +301,9 @@ class WeatherPickerBadge extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '自动获取实时天气 (Open-Meteo)',
+                    location != null && location!.trim().isNotEmpty
+                        ? '自动获取实时天气 (${location!.trim()})'
+                        : '自动获取实时天气 (Open-Meteo)',
                     style: TextStyle(
                       color: tokens.terracotta,
                       fontSize: 13,

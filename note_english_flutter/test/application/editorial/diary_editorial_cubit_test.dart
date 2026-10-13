@@ -183,7 +183,7 @@ void main() {
     );
 
     blocTest<DiaryEditorialCubit, DiaryEditorialState>(
-      'should fetch and apply realtime weather from weather gateway',
+      'should fetch and apply realtime weather by explicitly given cityName',
       setUp: () {
         when(() => diaryRepo.saveEntry(any())).thenAnswer((_) async {});
       },
@@ -222,6 +222,107 @@ void main() {
             .having((s) => s.entry.metadata.apparentTemperature, 'apparentTemperature', 23.8)
             .having((s) => s.entry.metadata.humidity, 'humidity', 50)
             .having((s) => s.entry.metadata.isDay, 'isDay', isTrue),
+      ],
+      verify: (_) {
+        verify(() => diaryRepo.saveEntry(any())).called(1);
+      },
+    );
+
+    blocTest<DiaryEditorialCubit, DiaryEditorialState>(
+      '原本选择的位置，再点“自动获取实时天气”时必须保持该位置，绝不变成默认北京',
+      setUp: () {
+        when(() => diaryRepo.saveEntry(any())).thenAnswer((_) async {});
+      },
+      build: () {
+        final weatherGateway = MockWeatherGateway();
+        // 模拟已存在位置为 'Shenzhen' 的随笔
+        final entryWithLocation = initialEntry.copyWith(
+          metadata: initialEntry.metadata.copyWith(
+            location: 'Shenzhen',
+          ),
+        );
+        when(() => weatherGateway.fetchWeatherByCity('Shenzhen')).thenAnswer(
+          (_) async => CurrentWeatherReport(
+            condition: WeatherCondition.cloudy,
+            temperature: 26.0,
+            apparentTemperature: 27.2,
+            relativeHumidity: 65,
+            precipitation: 0.0,
+            isDay: true,
+            weatherCode: 2,
+            locationName: 'Shenzhen',
+            latitude: 22.54,
+            longitude: 114.05,
+            fetchedAt: DateTime.now(),
+          ),
+        );
+        return DiaryEditorialCubit(
+          diaryRepository: diaryRepo,
+          corpusRepository: corpusRepo,
+          configRepository: configRepo,
+          aiGateway: aiGateway,
+          weatherGateway: weatherGateway,
+          initialEntry: entryWithLocation,
+        );
+      },
+      // 触发无参的“自动获取实时天气”
+      act: (cubit) => cubit.fetchAndApplyRealtimeWeather(),
+      expect: () => [
+        isA<DiaryEditorialState>()
+            .having((s) => s.entry.metadata.location, 'location', 'Shenzhen')
+            .having((s) => s.entry.metadata.weather, 'weather', WeatherCondition.cloudy)
+            .having((s) => s.entry.metadata.temperature, 'temperature', 26.0),
+      ],
+      verify: (_) {
+        verify(() => diaryRepo.saveEntry(any())).called(1);
+      },
+    );
+
+    blocTest<DiaryEditorialCubit, DiaryEditorialState>(
+      '随笔无位置但用户此前曾输入过位置时，自动获取应优先继承用户输入的最后位置',
+      setUp: () {
+        when(() => diaryRepo.saveEntry(any())).thenAnswer((_) async {});
+      },
+      build: () {
+        final weatherGateway = MockWeatherGateway();
+        // 预设用户此前手动输入了 Tokyo
+        DiaryEditorialCubit.lastUserSelectedLocation = 'Tokyo';
+
+        when(() => weatherGateway.fetchWeatherByCity('Tokyo')).thenAnswer(
+          (_) async => CurrentWeatherReport(
+            condition: WeatherCondition.rainy,
+            temperature: 18.0,
+            apparentTemperature: 17.5,
+            relativeHumidity: 80,
+            precipitation: 2.5,
+            isDay: true,
+            weatherCode: 61,
+            locationName: 'Tokyo',
+            latitude: 35.68,
+            longitude: 139.76,
+            fetchedAt: DateTime.now(),
+          ),
+        );
+        // 当前随笔无 location
+        final entryWithoutLocation = initialEntry.copyWith(
+          metadata: initialEntry.metadata.copyWith(
+            location: null,
+          ),
+        );
+        return DiaryEditorialCubit(
+          diaryRepository: diaryRepo,
+          corpusRepository: corpusRepo,
+          configRepository: configRepo,
+          aiGateway: aiGateway,
+          weatherGateway: weatherGateway,
+          initialEntry: entryWithoutLocation,
+        );
+      },
+      act: (cubit) => cubit.fetchAndApplyRealtimeWeather(),
+      expect: () => [
+        isA<DiaryEditorialState>()
+            .having((s) => s.entry.metadata.location, 'location', 'Tokyo')
+            .having((s) => s.entry.metadata.weather, 'weather', WeatherCondition.rainy),
       ],
       verify: (_) {
         verify(() => diaryRepo.saveEntry(any())).called(1);

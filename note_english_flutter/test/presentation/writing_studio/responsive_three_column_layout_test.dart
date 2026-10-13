@@ -98,7 +98,6 @@ void main() {
       expect(find.byKey(const ValueKey('call_editor_button')), findsOneWidget);
 
       // 3. 验证默认右边栏 (AI 视窗) 处于收起隐藏状态
-      expect(find.byKey(const ValueKey('close_ai_sidebar_button')), findsNothing);
       expect(find.byType(EditorialInspectorView), findsNothing);
 
       // 4. 点击“呼叫主编梳理”
@@ -109,12 +108,10 @@ void main() {
       // 5. 验证三栏并存：左边栏 + 主区域 + 右边栏同时呈现
       expect(find.text('随笔手账'), findsOneWidget); // 左边栏
       expect(find.byKey(const ValueKey('diary_input_field')), findsOneWidget); // 主区域
-      expect(find.text('主编梳理与追问'), findsOneWidget); // 右边栏顶部标题
-      expect(find.byType(EditorialInspectorView), findsOneWidget); // 右边栏AI内容
-      expect(find.byKey(const ValueKey('close_ai_sidebar_button')), findsOneWidget); // 右边栏收起按钮
+      expect(find.byType(EditorialInspectorView), findsOneWidget); // 右边栏AI内容全量纯净呈现
 
-      // 6. 点击右边栏收起按钮
-      await tester.tap(find.byKey(const ValueKey('close_ai_sidebar_button')));
+      // 6. 点击右上角收起主编视窗按钮
+      await tester.tap(find.byKey(const ValueKey('toggle_ai_sidebar_button')));
       await tester.pumpAndSettle();
 
       // 右边栏收起，恢复为左边栏+主区域
@@ -144,7 +141,7 @@ void main() {
       // 1. 平板默认仅展示主区域，左边栏非常驻
       expect(find.byKey(const ValueKey('diary_input_field')), findsOneWidget);
       expect(find.text('随笔手账'), findsNothing);
-      expect(find.byKey(const ValueKey('close_ai_sidebar_button')), findsNothing);
+      expect(find.byType(EditorialInspectorView), findsNothing);
 
       // 2. 点击左上角抽屉按钮，笔记列表从左侧滑出 (Drawer)
       await tester.tap(find.byKey(const ValueKey('diary_drawer_button')));
@@ -164,11 +161,10 @@ void main() {
 
       // 4. 验证平板端双栏并排：主区域 + 右边栏 (AI)
       expect(find.byKey(const ValueKey('diary_input_field')), findsOneWidget);
-      expect(find.text('主编梳理与追问'), findsOneWidget);
       expect(find.byType(EditorialInspectorView), findsOneWidget);
 
-      // 5. 点击收起右边栏
-      await tester.tap(find.byKey(const ValueKey('close_ai_sidebar_button')));
+      // 5. 点击右上角按钮收起右边栏
+      await tester.tap(find.byKey(const ValueKey('toggle_ai_sidebar_button')));
       await tester.pumpAndSettle();
       expect(find.byType(EditorialInspectorView), findsNothing);
     });

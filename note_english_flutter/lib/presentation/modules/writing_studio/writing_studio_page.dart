@@ -679,9 +679,6 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
                           ? Icons.auto_awesome
                           : Icons.auto_awesome_outlined,
                       size: 20,
-                      color: _isAiSidebarOpen
-                          ? tokens.terracotta
-                          : tokens.textMuted,
                     ),
                     tooltip: _isAiSidebarOpen ? '收起主编视窗' : '展开主编视窗',
                     onPressed: () {
@@ -801,7 +798,6 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
               context,
               state,
               tokens,
-              onClose: () => setState(() => _isAiSidebarOpen = false),
             ),
           ),
       ],
@@ -863,7 +859,6 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
               context,
               state,
               tokens,
-              onClose: () => setState(() => _isAiSidebarOpen = false),
             ),
           ),
       ],
@@ -954,72 +949,23 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
     );
   }
 
-  /// 右侧 AI 视窗外壳 (桌面与平板通用)
+  /// 右侧 AI 视窗外壳 (桌面与平板通用，去冗余标题栏，空间全量留给主编梳理与追问)
   Widget _buildRightAiSidebar(
     BuildContext context,
     DiaryEditorialState state,
-    AppThemeTokens tokens, {
-    required VoidCallback onClose,
-  }) {
+    AppThemeTokens tokens,
+  ) {
     return Container(
       color: tokens.card.withValues(alpha: 0.5),
-      child: Column(
-        children: [
-          // 顶部操作栏
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: tokens.canvas,
-              border: Border(bottom: BorderSide(color: tokens.cardBorder)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      const Text('✨', style: TextStyle(fontSize: 16)),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          '主编梳理与追问',
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: tokens.textPrimary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  key: const ValueKey('close_ai_sidebar_button'),
-                  icon: const Icon(Icons.close, size: 18),
-                  tooltip: '收起AI视窗',
-                  splashRadius: 16,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  onPressed: onClose,
-                ),
-              ],
-            ),
-          ),
-          // 内容区域
-          Expanded(
-            child: state.status == DiaryAnalysisStatus.analyzing
-                ? _buildAnalyzingIndicator(tokens)
-                : (state.entry.analysisResult != null
-                    ? EditorialInspectorView(
-                        analysisResult: state.entry.analysisResult!,
-                        currentEntry: state.entry,
-                        silentCorpusCount: state.silentCorpusCount,
-                      )
-                    : _buildEmptyEditorialPlaceholder(tokens)),
-          ),
-        ],
-      ),
+      child: state.status == DiaryAnalysisStatus.analyzing
+          ? _buildAnalyzingIndicator(tokens)
+          : (state.entry.analysisResult != null
+              ? EditorialInspectorView(
+                  analysisResult: state.entry.analysisResult!,
+                  currentEntry: state.entry,
+                  silentCorpusCount: state.silentCorpusCount,
+                )
+              : _buildEmptyEditorialPlaceholder(tokens)),
     );
   }
 

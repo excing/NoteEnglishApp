@@ -55,6 +55,9 @@ class DiaryEditorialCubit extends Cubit<DiaryEditorialState> {
   final PromptTemplateEngine _promptEngine;
   final CorpusIngestionService _corpusService;
 
+  /// 用户最后一次手动指定或确认的位置（内存持久化，用于跨随笔或新建随笔时记忆用户常用城市）
+  static String? lastUserSelectedLocation;
+
   DiaryEditorialCubit({
     required IDiaryRepository diaryRepository,
     required ICorpusRepository corpusRepository,
@@ -74,7 +77,11 @@ class DiaryEditorialCubit extends Cubit<DiaryEditorialState> {
         super(DiaryEditorialState(
           entry: initialEntry,
           status: initialEntry.status,
-        ));
+        )) {
+    if (initialEntry.metadata.location?.trim().isNotEmpty == true) {
+      lastUserSelectedLocation = initialEntry.metadata.location!.trim();
+    }
+  }
 
   /// 更新正文与字数
   void updateContent(String newContent) {
@@ -90,6 +97,9 @@ class DiaryEditorialCubit extends Cubit<DiaryEditorialState> {
 
   /// 切换当前正在编辑的随笔 (无缝载入)
   void loadEntry(DiaryEntry newEntry) {
+    if (newEntry.metadata.location?.trim().isNotEmpty == true) {
+      lastUserSelectedLocation = newEntry.metadata.location!.trim();
+    }
     emit(DiaryEditorialState(
       entry: newEntry,
       status: newEntry.status,
@@ -109,19 +119,34 @@ class DiaryEditorialCubit extends Cubit<DiaryEditorialState> {
   }
 
   /// 获取并自动应用真实实时天气 (Open-Meteo)
+  ///
+  /// 若用户指定了 [cityName]，则优先按指定城市获取并记录为用户位置；
+  /// 若未指定 [cityName]：
+  /// - 优先继承当前随笔原本已有的 [location]；
+  /// - 其次继承用户此前输入/选择过的最后位置 [lastUserSelectedLocation]；
+  /// - 仅在完全没有任何已知用户输入位置时，才降级执行全局自动定位/默认城市。
   Future<void> fetchAndApplyRealtimeWeather({String? cityName}) async {
     if (_weatherGateway == null) return;
     try {
+      final effectiveCity = cityName?.trim().isNotEmpty == true
+          ? cityName!.trim()
+          : (state.entry.metadata.location?.trim().isNotEmpty == true
+              ? state.entry.metadata.location!.trim()
+              : (lastUserSelectedLocation?.trim().isNotEmpty == true
+                  ? lastUserSelectedLocation!.trim()
+                  : null));
+
       final CurrentWeatherReport report;
-      if (cityName != null && cityName.trim().isNotEmpty) {
-        report = await _weatherGateway.fetchWeatherByCity(cityName);
+      if (effectiveCity != null) {
+        report = await _weatherGateway.fetchWeatherByCity(effectiveCity);
+        lastUserSelectedLocation = report.locationName ?? effectiveCity;
       } else {
         report = await _weatherGateway.fetchWeatherAuto();
       }
       final updated = state.entry.copyWith(
         metadata: state.entry.metadata.copyWith(
           weather: report.condition,
-          location: report.locationName,
+          location: report.locationName ?? effectiveCity,
           temperature: report.temperature,
           apparentTemperature: report.apparentTemperature,
           humidity: report.relativeHumidity,
