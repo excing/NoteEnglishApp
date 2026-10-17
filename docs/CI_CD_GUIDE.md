@@ -9,7 +9,6 @@
 工作流文件位于根目录下：
 1. **全平台打包与发布工作流**：[`.github/workflows/build-and-release.yml`](../.github/workflows/build-and-release.yml)
 2. **日常代码质量校验工作流**：[`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
-3. **Web 端 GitHub Pages 自动部署工作流**：[`.github/workflows/deploy-pages.yml`](../.github/workflows/deploy-pages.yml)
 
 ### 各平台产物清单
 
@@ -121,11 +120,18 @@ storeFile=upload-keystore.jks
 
 ## 四、Web 端自动部署到 GitHub Pages
 
-项目已配置专门的自动部署工作流 [`.github/workflows/deploy-pages.yml`](../.github/workflows/deploy-pages.yml)：
-- **触发时机**：每当向 `main` 分支推送 Flutter 代码更新，或者在 Actions 页面手动点击触发时，自动编译生产 Web 静态站点并部署；
-- **访问地址**：`https://excing.github.io/NoteEnglishApp/`（已配置 `--base-href "/NoteEnglishApp/"` 适配项目路径）。
+每次发布版本（推送 `v*` Tag 或手动执行发版）时，工作流会自动执行 `deploy-pages` 任务，将 Web 产物部署到 GitHub Pages。
 
-### 首次使用设置（仅需 1 步）：
-1. 打开 GitHub 仓库页面，点击 **Settings** -> 左侧菜单选择 **Pages**；
-2. 在 **Build and deployment** 下方的 **Source** 下拉菜单中，将默认的 `Deploy from a branch` 改选为 **`GitHub Actions`** 即可！
-3. 之后无需维护任何分支，GitHub Actions 将全自动部署并维护在线 Web 站点。
+### 1. 自动化特性
+- **自动适配子路径**：自动将 HTML `<base href>` 替换为当前仓库对应的子路径（如 `/NoteEnglishApp/`），避免白屏问题；
+- **SPA 路由容错**：自动生成 `404.html` 镜像，支持在浏览器中直接刷新路由页面；
+- **分支推送**：静态网页文件自动推送到仓库的 `gh-pages` 分支。
+
+### 2. 仓库开启步骤（仅需一次）
+1. 打开 GitHub 仓库页面，点击 **Settings** -> 左侧 **Pages**；
+2. 在 **Build and deployment** 下：
+   - **Source**：选择 `Deploy from a branch`；
+   - **Branch**：选择 `gh-pages` 分支，目录选择 `/ (root)`；
+3. 点击 **Save** 保存。
+
+保存后，每次新版本发布成功，GitHub Pages 就会自动更新，用户即可通过 `https://<用户名>.github.io/NoteEnglishApp/` 直接免安装体验 Web 版！

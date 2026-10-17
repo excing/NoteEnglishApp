@@ -383,3 +383,41 @@ jobs:
           prerelease: ${{ github.event.inputs.prerelease == true }}
           files: final-assets/*
           generate_release_notes: true
+
+  # ============================================================================
+  # 9. 自动部署 Web 站到 GitHub Pages (发版时自动执行)
+  # ============================================================================
+  deploy-pages:
+    name: Deploy Web to GitHub Pages
+    needs:
+      - build-web
+      - release
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Web Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web-packages
+          path: web-artifact
+
+      - name: Prepare GitHub Pages Assets
+        run: |
+          mkdir -p gh-pages-dist
+          unzip -q web-artifact/OtterJot-NoteEnglish-Web.zip -d temp-web
+          cp -r temp-web/build/web/* gh-pages-dist/
+          # 针对 GitHub Pages 二级子路径 (/NoteEnglishApp/) 动态适配 base href
+          sed -i 's|<base href="/"\s*>|<base href="/'${{ github.event.repository.name }}'/">|g' gh-pages-dist/index.html
+          # 复制 404.html 以支持 Flutter SPA 单页应用路由直接刷新
+          cp gh-pages-dist/index.html gh-pages-dist/404.html
+
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./gh-pages-dist
+          publish_branch: gh-pages
+          force_orphan: true
