@@ -80,10 +80,20 @@ class MethodChannelQuickPolishPlatformGateway implements IQuickPolishPlatformGat
     } catch (_) {}
   }
 
+  @override
+  Future<void> relaunchApp() async {
+    try {
+      await _channel.invokeMethod('relaunchApp');
+    } on MissingPluginException {
+      // No-op
+    } catch (_) {}
+  }
+
   Future<dynamic> _handleNativeMethodCall(MethodCall call) async {
     switch (call.method) {
       case 'performQuickPolish':
-        final rawText = call.arguments['selectedText'] as String? ?? '';
+        final args = call.arguments;
+        final rawText = (args is Map ? args['selectedText'] : null) as String? ?? '';
         if (_handler != null) {
           final polished = await _handler!(rawText);
           return {'polishedText': polished};

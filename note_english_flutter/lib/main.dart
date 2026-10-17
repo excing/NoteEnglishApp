@@ -133,6 +133,9 @@ class NoteEnglishApp extends StatelessWidget {
                       aiGateway: sl<IAiGateway>(),
                       configRepository: sl<IAiConfigRepository>(),
                       corpusRepository: sl<ICorpusRepository>(),
+                      diaryRepository: sl.isRegistered<IDiaryRepository>()
+                          ? sl<IDiaryRepository>()
+                          : null,
                     ),
             ),
           ),

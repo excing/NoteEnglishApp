@@ -449,13 +449,13 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
             style: TextStyle(fontSize: 12, color: tokens.textMuted, height: 1.4),
           ),
           const SizedBox(height: 10),
-          _buildGuideStep('1', '点击下方「前往系统设置授权」，系统将直接跳转至「辅助功能」设置；', tokens),
+          _buildGuideStep('1', '点击下方「前往系统设置授权」，系统将直接跳转至「辅助功能」（在 macOS 15 中名为「设备控制和数据访问」）设置；', tokens),
           const SizedBox(height: 4),
-          _buildGuideStep('2', '若列表中已出现「OtterJot」，请直接将右侧开关切换为允许；', tokens),
+          _buildGuideStep('2', '若列表中已出现「OtterJot」，请直接将右侧开关切换为允许；若未出现，可点击「在访达中定位应用」拖入列表；', tokens),
           const SizedBox(height: 4),
-          _buildGuideStep('3', '若列表中未出现「OtterJot」：点击下方「在访达中定位应用」，将高亮选中的 OtterJot 拖入系统列表，或点击系统列表底部的「+」号添加；', tokens),
+          _buildGuideStep('3', '【关键】macOS 系统机制要求：授权后通常需要「退出并重启应用」，系统内核权限方可生效；', tokens),
           const SizedBox(height: 4),
-          _buildGuideStep('4', '授权完成后返回此处，点击「已完成授权，重新检测」。', tokens),
+          _buildGuideStep('4', '完成设置后点击下方「退出并重启 OtterJot」即可全面就绪；如暂不重启，也可先通过常规复制选中文本，按快捷键润色（剪贴板平滑降级模式）。', tokens),
           const SizedBox(height: 14),
           Wrap(
             spacing: 10,
@@ -477,6 +477,20 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
                 label: const Text('前往系统设置授权'),
               ),
               OutlinedButton.icon(
+                key: const ValueKey('relaunch_app_button'),
+                onPressed: () => cubit.relaunchApp(),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: tokens.cardBorder),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  textStyle: const TextStyle(fontSize: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                icon: Icon(Icons.restart_alt, size: 14, color: tokens.textPrimary),
+                label: Text('退出并重启 OtterJot', style: TextStyle(color: tokens.textPrimary)),
+              ),
+              OutlinedButton.icon(
                 key: const ValueKey('locate_in_finder_button'),
                 onPressed: () => cubit.openAppInFinder(),
                 style: OutlinedButton.styleFrom(
@@ -488,7 +502,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
                   ),
                 ),
                 icon: Icon(Icons.folder_open, size: 14, color: tokens.textPrimary),
-                label: Text('在访达中定位应用 (拖入列表)', style: TextStyle(color: tokens.textPrimary)),
+                label: Text('在访达中定位应用', style: TextStyle(color: tokens.textPrimary)),
               ),
               OutlinedButton.icon(
                 key: const ValueKey('recheck_permission_button'),
@@ -502,7 +516,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
                   ),
                 ),
                 icon: Icon(Icons.refresh, size: 14, color: tokens.textPrimary),
-                label: Text('已完成授权，重新检测', style: TextStyle(color: tokens.textPrimary)),
+                label: Text('重新检测', style: TextStyle(color: tokens.textPrimary)),
               ),
             ],
           ),

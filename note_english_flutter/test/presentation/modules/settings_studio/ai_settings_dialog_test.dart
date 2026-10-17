@@ -49,6 +49,7 @@ void main() {
       when(() => mockQuickPolishCubit.checkAccessibilityPermission()).thenAnswer((_) async {});
       when(() => mockQuickPolishCubit.requestAccessibilityPermission()).thenAnswer((_) async {});
       when(() => mockQuickPolishCubit.openAppInFinder()).thenAnswer((_) async {});
+      when(() => mockQuickPolishCubit.relaunchApp()).thenAnswer((_) async {});
     });
 
     tearDown(() {
@@ -135,6 +136,13 @@ void main() {
       await tester.tap(requestBtn);
       await tester.pump();
       verify(() => mockQuickPolishCubit.requestAccessibilityPermission()).called(1);
+
+      final relaunchBtn = find.byKey(const ValueKey('relaunch_app_button'));
+      expect(relaunchBtn, findsOneWidget);
+      await tester.ensureVisible(relaunchBtn);
+      await tester.tap(relaunchBtn);
+      await tester.pump();
+      verify(() => mockQuickPolishCubit.relaunchApp()).called(1);
 
       final locateBtn = find.byKey(const ValueKey('locate_in_finder_button'));
       expect(locateBtn, findsOneWidget);

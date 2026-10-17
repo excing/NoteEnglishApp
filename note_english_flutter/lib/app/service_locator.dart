@@ -57,6 +57,7 @@ Future<void> setupServiceLocator({IStorageEngine? customStorageEngine}) async {
       aiGateway: sl<IAiGateway>(),
       configRepository: sl<IAiConfigRepository>(),
       corpusRepository: sl<ICorpusRepository>(),
+      diaryRepository: sl<IDiaryRepository>(),
       promptTemplateEngine: sl<PromptTemplateEngine>(),
       corpusIngestionService: sl<CorpusIngestionService>(),
     ),

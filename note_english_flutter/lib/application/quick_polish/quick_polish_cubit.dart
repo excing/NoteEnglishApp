@@ -73,6 +73,11 @@ class QuickPolishCubit extends Cubit<QuickPolishState> {
     await _platformGateway.openAppInFinder();
   }
 
+  /// 重启 OtterJot 进程以刷新系统 TCC 权限 Token
+  Future<void> relaunchApp() async {
+    await _platformGateway.relaunchApp();
+  }
+
   /// 处理从系统全局快捷键传入的选中文本
   Future<String> _handleQuickPolishRequest(String selectedText) async {
     // 若功能已被用户关闭，则直接忽略并保留原文本

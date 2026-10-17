@@ -166,5 +166,13 @@ void main() {
 
       expect(cubit.state.isAccessibilityGranted, isFalse);
     });
+
+    test('relaunchApp delegates to platform gateway', () async {
+      when(() => mockGateway.relaunchApp()).thenAnswer((_) async {});
+
+      await cubit.relaunchApp();
+
+      verify(() => mockGateway.relaunchApp()).called(1);
+    });
   });
 }

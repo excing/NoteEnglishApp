@@ -25,4 +25,7 @@ abstract class IQuickPolishPlatformGateway {
 
   /// 在 macOS 访达 (Finder) 中高亮定位当前应用 Bundle，便于手动拖入辅助功能列表
   Future<void> openAppInFinder();
+
+  /// 退出并重启 OtterJot 进程以使新开启的系统权限生效
+  Future<void> relaunchApp();
 }
