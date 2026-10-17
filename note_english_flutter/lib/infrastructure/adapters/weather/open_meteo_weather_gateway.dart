@@ -119,7 +119,7 @@ class OpenMeteoWeatherGateway implements IWeatherGateway {
       final lon = (first['longitude'] as num).toDouble();
       final resolvedName = (first['name'] as String?) ?? query;
 
-      return fetchWeatherByCoordinates(
+      return await fetchWeatherByCoordinates(
         latitude: lat,
         longitude: lon,
         locationName: resolvedName,
