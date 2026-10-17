@@ -14,13 +14,13 @@
 
 | 平台 | 操作系统 Runner | 产物格式 | 产物文件名 | 说明 |
 | :--- | :--- | :--- | :--- | :--- |
-| **Android (移动端)** | `ubuntu-latest` | `.apk` | `NoteEnglishApp-Android-release.apk` | 适合侧载/真机直接安装测试 |
-| **Android (移动端)** | `ubuntu-latest` | `.aab` | `NoteEnglishApp-Android-release.aab` | Google Play 官方分发格式 |
-| **iOS (移动端)** | `macos-latest` | `.ipa` / `.zip` | `NoteEnglishApp-iOS-unsigned.ipa`<br>`NoteEnglishApp-iOS-Runner.app.zip` | 未签名包，支持 AltStore / TrollStore / 个人免费证书或签名工具重签 |
-| **macOS (桌面端)** | `macos-latest` | `.dmg` / `.zip` | `NoteEnglishApp-macOS.dmg`<br>`NoteEnglishApp-macOS.zip` | 包含独立可运行的 Mac 应用程序及磁盘映像 |
-| **Windows (桌面端)** | `windows-latest` | `.zip` | `NoteEnglishApp-Windows-x64.zip` | 包含 Release 运行目录与依赖动态库 |
-| **Linux (桌面端)** | `ubuntu-latest` | `.tar.gz` | `NoteEnglishApp-Linux-x64.tar.gz` | Linux x64 独立运行 bundle |
-| **Web** | `ubuntu-latest` | `.zip` | `NoteEnglishApp-Web.zip` | 生产静态网页包，解压后可部署在 Nginx、Vercel、GitHub Pages 等 |
+| **Android (移动端)** | `ubuntu-latest` | `.apk` | `OtterJot-NoteEnglish-Android-release.apk` | 适合侧载/真机直接安装测试 |
+| **Android (移动端)** | `ubuntu-latest` | `.aab` | `OtterJot-NoteEnglish-Android-release.aab` | Google Play 官方分发格式 |
+| **iOS (移动端)** | `macos-latest` | `.ipa` / `.zip` | `OtterJot-NoteEnglish-iOS-unsigned.ipa`<br>`OtterJot-NoteEnglish-iOS-Runner.app.zip` | 未签名包，支持 AltStore / TrollStore / 个人免费证书或签名工具重签 |
+| **macOS (桌面端)** | `macos-latest` | `.dmg` / `.zip` | `OtterJot-NoteEnglish-macOS.dmg`<br>`OtterJot-NoteEnglish-macOS.zip` | 包含独立可运行的 Mac 应用程序及磁盘映像（支持拖拽安装） |
+| **Windows (桌面端)** | `windows-latest` | `.zip` | `OtterJot-NoteEnglish-Windows-x64.zip` | 包含 Release 运行目录与依赖动态库 |
+| **Linux (桌面端)** | `ubuntu-latest` | `.tar.gz` | `OtterJot-NoteEnglish-Linux-x64.tar.gz` | Linux x64 独立运行 bundle |
+| **Web** | `ubuntu-latest` | `.zip` | `OtterJot-NoteEnglish-Web.zip` | 生产静态网页包，解压后可部署在 Nginx、Vercel、GitHub Pages 等 |
 
 ---
 

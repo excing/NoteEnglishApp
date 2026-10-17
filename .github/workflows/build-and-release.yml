@@ -120,8 +120,8 @@ jobs:
       - name: Prepare Artifacts
         run: |
           mkdir -p artifacts
-          cp build/app/outputs/flutter-apk/app-release.apk artifacts/NoteEnglishApp-Android-release.apk
-          cp build/app/outputs/bundle/release/app-release.aab artifacts/NoteEnglishApp-Android-release.aab
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/OtterJot-NoteEnglish-Android-release.apk
+          cp build/app/outputs/bundle/release/app-release.aab artifacts/OtterJot-NoteEnglish-Android-release.aab
 
       - name: Upload Android Artifacts
         uses: actions/upload-artifact@v4
@@ -160,8 +160,8 @@ jobs:
           mkdir -p artifacts
           mkdir -p Payload
           cp -r build/ios/iphoneos/Runner.app Payload/
-          zip -r -q artifacts/NoteEnglishApp-iOS-unsigned.ipa Payload
-          ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app artifacts/NoteEnglishApp-iOS-Runner.app.zip
+          zip -r -q artifacts/OtterJot-NoteEnglish-iOS-unsigned.ipa Payload
+          ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app artifacts/OtterJot-NoteEnglish-iOS-Runner.app.zip
 
       - name: Upload iOS Artifacts
         uses: actions/upload-artifact@v4
@@ -204,13 +204,13 @@ jobs:
             exit 1
           fi
           echo "Found macOS App: $APP_PATH"
-          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" artifacts/NoteEnglishApp-macOS.zip
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" artifacts/OtterJot-NoteEnglish-macOS.zip
           
           # 创建包含 Applications 快捷方式软链接的标准 DMG 结构
           mkdir -p dmg_staging
           cp -R "$APP_PATH" dmg_staging/
           ln -s /Applications dmg_staging/Applications
-          hdiutil create -volname "NoteEnglish" -srcfolder dmg_staging -ov -format UDZO artifacts/NoteEnglishApp-macOS.dmg
+          hdiutil create -volname "OtterJot" -srcfolder dmg_staging -ov -format UDZO artifacts/OtterJot-NoteEnglish-macOS.dmg
           rm -rf dmg_staging
 
       - name: Upload macOS Artifacts
@@ -249,7 +249,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path artifacts
-          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath artifacts\NoteEnglishApp-Windows-x64.zip
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath artifacts\OtterJot-NoteEnglish-Windows-x64.zip
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
@@ -291,7 +291,7 @@ jobs:
       - name: Package Linux Bundle
         run: |
           mkdir -p artifacts
-          tar -czf artifacts/NoteEnglishApp-Linux-x64.tar.gz -C build/linux/x64/release/bundle .
+          tar -czf artifacts/OtterJot-NoteEnglish-Linux-x64.tar.gz -C build/linux/x64/release/bundle .
 
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
@@ -328,7 +328,7 @@ jobs:
       - name: Package Web App
         run: |
           mkdir -p artifacts
-          zip -r -q artifacts/NoteEnglishApp-Web.zip build/web
+          zip -r -q artifacts/OtterJot-NoteEnglish-Web.zip build/web
 
       - name: Upload Web Artifacts
         uses: actions/upload-artifact@v4
