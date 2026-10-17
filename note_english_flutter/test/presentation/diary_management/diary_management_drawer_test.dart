@@ -92,7 +92,7 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('随笔手账'), findsOneWidget);
+      expect(find.text('OtterJot'), findsOneWidget);
       expect(find.byKey(const ValueKey('new_diary_button')), findsOneWidget);
       expect(find.byKey(const ValueKey('search_diary_input')), findsOneWidget);
 

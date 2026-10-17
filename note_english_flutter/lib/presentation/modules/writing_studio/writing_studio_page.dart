@@ -8,6 +8,7 @@ import 'package:note_english_flutter/application/editorial/diary_editorial_cubit
 import 'package:note_english_flutter/application/inquiry/inquiry_cubit.dart';
 import 'package:note_english_flutter/application/settings/ai_settings_cubit.dart';
 import 'package:note_english_flutter/app/service_locator.dart';
+import 'package:note_english_flutter/core/shortcuts/app_shortcuts.dart';
 import 'package:note_english_flutter/core/theme/app_theme_tokens.dart';
 import 'package:note_english_flutter/domain/models/diary/diary_entry.dart';
 import 'package:note_english_flutter/domain/repositories/corpus_repository.dart';
@@ -58,6 +59,7 @@ class WritingStudioPage extends StatefulWidget {
 class _WritingStudioPageState extends State<WritingStudioPage> {
   late TextEditingController _textCtrl;
   final FocusNode _focusNode = FocusNode();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   String? _currentEntryId;
 
   /// 桌面端三栏架构中左边栏(随笔列表)的展开状态，默认开启
@@ -433,6 +435,7 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
   @override
   void initState() {
     super.initState();
+    HardwareKeyboard.instance.addHandler(_handleHardwareKeyEvent);
     final cubit = context.read<DiaryEditorialCubit>();
     _currentEntryId = cubit.state.entry.id;
     _textCtrl = TextEditingController(text: cubit.state.entry.content);
@@ -445,9 +448,108 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleHardwareKeyEvent);
     _textCtrl.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  /// 硬件级物理快捷键拦截器 (保证全窗口、全焦点模式及 Drawer 开启状态下即时响应)
+  bool _handleHardwareKeyEvent(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    if (!mounted) return false;
+
+    // 若有非抽屉的弹窗 (例如设置对话框、删除二次确认等) 覆盖在上方，不拦截主窗口快捷键
+    final modalRoute = ModalRoute.of(context);
+    final isDrawerOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
+    if (modalRoute != null && !modalRoute.isCurrent && !isDrawerOpen) {
+      return false;
+    }
+
+    if (AppShortcuts.matchesAny(AppShortcuts.toggleLeftSidebar, event)) {
+      _toggleLeftSidebar();
+      return true;
+    }
+    if (AppShortcuts.matchesAny(AppShortcuts.toggleRightSidebar, event)) {
+      _toggleRightSidebar();
+      return true;
+    }
+    if (AppShortcuts.matchesAny(AppShortcuts.newEntry, event)) {
+      _handleQuickNewEntry();
+      return true;
+    }
+    if (AppShortcuts.matchesAny(AppShortcuts.callEditor, event)) {
+      _handleCallEditor();
+      return true;
+    }
+    if (AppShortcuts.matchesAny(AppShortcuts.openCorpus, event)) {
+      _openCorpus(context);
+      return true;
+    }
+    if (AppShortcuts.matchesAny(AppShortcuts.openSettings, event)) {
+      _openSettings(context);
+      return true;
+    }
+    if (AppShortcuts.matchesAny(AppShortcuts.refreshWeather, event)) {
+      context.read<DiaryEditorialCubit>().fetchAndApplyRealtimeWeather();
+      return true;
+    }
+    return false;
+  }
+
+  /// 切换左边栏 (桌面端平滑滑入滑出，平板/移动端切换 Scaffold Drawer)
+  void _toggleLeftSidebar() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= LayoutBreakpoints.desktop;
+    if (isDesktop) {
+      setState(() {
+        _isLeftSidebarOpen = !_isLeftSidebarOpen;
+        _isLeftSidebarTemporarilyCollapsed = false;
+        _leftSidebarOverdrag = 0.0;
+        _leftSidebarReversePull = 0.0;
+      });
+    } else {
+      final scaffold = _scaffoldKey.currentState;
+      if (scaffold != null) {
+        if (scaffold.isDrawerOpen) {
+          scaffold.closeDrawer();
+        } else {
+          scaffold.openDrawer();
+        }
+      }
+    }
+  }
+
+  /// 切换右边栏 (桌面与平板端平滑滑入滑出)
+  void _toggleRightSidebar() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < LayoutBreakpoints.tablet;
+    if (!isMobile) {
+      setState(() {
+        _isAiSidebarOpen = !_isAiSidebarOpen;
+        _isRightSidebarTemporarilyCollapsed = false;
+        _rightSidebarOverdrag = 0.0;
+        _rightSidebarReversePull = 0.0;
+      });
+    }
+  }
+
+  /// 快捷新建随笔
+  Future<void> _handleQuickNewEntry() async {
+    final listCubit = context.read<DiaryListCubit>();
+    final newEntry = await listCubit.createEntry();
+    _handleEntryCreated(newEntry);
+  }
+
+  /// 呼叫主编梳理
+  void _handleCallEditor() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < LayoutBreakpoints.tablet;
+    if (!isMobile) {
+      setState(() => _isAiSidebarOpen = true);
+    }
+    context.read<DiaryEditorialCubit>().updateContent(_textCtrl.text);
+    context.read<DiaryEditorialCubit>().requestAiAnalysis();
   }
 
   String? _formatResponsiveDate(DateTime dt, double width) {
@@ -535,21 +637,12 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
                     : Icons.menu_book_outlined)
                 : Icons.menu_book_outlined,
           ),
-          tooltip: isDesktop
-              ? (_isLeftSidebarOpen ? '收起随笔手账' : '展开随笔手账')
-              : '随笔手账与管理',
-          onPressed: () {
-            if (isDesktop) {
-              setState(() {
-                _isLeftSidebarOpen = !_isLeftSidebarOpen;
-                _isLeftSidebarTemporarilyCollapsed = false;
-                _leftSidebarOverdrag = 0.0;
-                _leftSidebarReversePull = 0.0;
-              });
-            } else {
-              Scaffold.of(scaffoldCtx).openDrawer();
-            }
-          },
+          tooltip: AppShortcuts.toggleLeftSidebarTooltip(
+            isDesktop
+                ? _isLeftSidebarOpen
+                : (_scaffoldKey.currentState?.isDrawerOpen ?? false),
+          ),
+          onPressed: _toggleLeftSidebar,
         ),
       ),
       title: LayoutBuilder(
@@ -613,7 +706,7 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
         IconButton(
           key: const ValueKey('quick_new_diary_button'),
           icon: const Icon(Icons.add_circle_outline, size: 20),
-          tooltip: '新建随笔',
+          tooltip: AppShortcuts.newEntryTooltip,
           onPressed: () async {
             final listCubit = context.read<DiaryListCubit>();
             final newEntry = await listCubit.createEntry();
@@ -629,7 +722,8 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
                   : Icons.auto_awesome_outlined,
               size: 20,
             ),
-            tooltip: _isAiSidebarOpen ? '收起主编视窗' : '展开主编视窗',
+            tooltip:
+                AppShortcuts.toggleRightSidebarTooltip(_isAiSidebarOpen),
             onPressed: () {
               setState(() {
                 _isAiSidebarOpen = !_isAiSidebarOpen;
@@ -693,27 +787,14 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
       builder: (context, state) {
         final entry = state.entry;
 
-        return CallbackShortcuts(
-          bindings: {
-            // 桌面/平板端快捷键: Cmd/Ctrl + Enter 呼叫主编
-            const SingleActivator(LogicalKeyboardKey.enter, meta: true): () {
-              if (!isMobile) {
-                setState(() => _isAiSidebarOpen = true);
-              }
-              context.read<DiaryEditorialCubit>().requestAiAnalysis();
-            },
-            const SingleActivator(LogicalKeyboardKey.enter, control: true): () {
-              if (!isMobile) {
-                setState(() => _isAiSidebarOpen = true);
-              }
-              context.read<DiaryEditorialCubit>().requestAiAnalysis();
-            },
-          },
+        return Material(
+          color: tokens.canvas,
           child: isDesktop
               ? _buildDesktopLayout(context, state, tokens, screenWidth)
               : (isTablet
                   ? _buildTabletLayout(context, state, tokens, screenWidth)
                   : Scaffold(
+                      key: _scaffoldKey,
                       backgroundColor: tokens.canvas,
                       drawer: DiaryManagementDrawer(
                         isPermanent: false,
@@ -892,6 +973,7 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
         // 1. 中间主区域 (编辑稿纸与工具条，带顶栏和侧滑抽屉，顶栏仅覆盖主区域)
         Expanded(
           child: Scaffold(
+            key: _scaffoldKey,
             backgroundColor: tokens.canvas,
             drawer: DiaryManagementDrawer(
               isPermanent: false,
@@ -1159,50 +1241,53 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
                       ),
                       const SizedBox(width: 6),
                     ],
-                    ElevatedButton.icon(
-                      key: const ValueKey('call_editor_button'),
-                      onPressed: isAnalyzing
-                          ? null
-                          : () {
-                              context
-                                  .read<DiaryEditorialCubit>()
-                                  .updateContent(_textCtrl.text);
-                              if (!isMobile) {
-                                setState(() => _isAiSidebarOpen = true);
-                              }
-                              context
-                                  .read<DiaryEditorialCubit>()
-                                  .requestAiAnalysis();
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: tokens.terracotta,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isCompact ? 12 : 18,
-                          vertical: 12,
+                    Tooltip(
+                      message: AppShortcuts.callEditorTooltip,
+                      child: ElevatedButton.icon(
+                        key: const ValueKey('call_editor_button'),
+                        onPressed: isAnalyzing
+                            ? null
+                            : () {
+                                context
+                                    .read<DiaryEditorialCubit>()
+                                    .updateContent(_textCtrl.text);
+                                if (!isMobile) {
+                                  setState(() => _isAiSidebarOpen = true);
+                                }
+                                context
+                                    .read<DiaryEditorialCubit>()
+                                    .requestAiAnalysis();
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: tokens.terracotta,
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isCompact ? 12 : 18,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          elevation: 0,
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        elevation: 0,
-                      ),
-                      icon: isAnalyzing
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text('✨', style: TextStyle(fontSize: 14)),
-                      label: Text(
-                        isAnalyzing
-                            ? '构思中...'
-                            : (isCompact ? '梳理' : '呼叫主编梳理'),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: isCompact ? 13 : 14,
+                        icon: isAnalyzing
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('✨', style: TextStyle(fontSize: 14)),
+                        label: Text(
+                          isAnalyzing
+                              ? '构思中...'
+                              : (isCompact ? '梳理' : '呼叫主编梳理'),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: isCompact ? 13 : 14,
+                          ),
                         ),
                       ),
                     ),

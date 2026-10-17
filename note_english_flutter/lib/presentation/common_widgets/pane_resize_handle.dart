@@ -15,6 +15,7 @@ class PaneResizeHandle extends StatefulWidget {
   final VoidCallback? onDragEnd;
   final String? tooltip;
   final double hitWidth;
+  final Color? backgroundColor;
 
   const PaneResizeHandle({
     super.key,
@@ -24,6 +25,7 @@ class PaneResizeHandle extends StatefulWidget {
     this.onDragEnd,
     this.tooltip,
     this.hitWidth = 8.0,
+    this.backgroundColor,
   });
 
   @override
@@ -61,12 +63,13 @@ class _PaneResizeHandleState extends State<PaneResizeHandle> {
         onHorizontalDragUpdate: (details) {
           widget.onDelta(details.primaryDelta ?? 0.0);
         },
-        child: SizedBox(
+        child: Container(
           width: widget.hitWidth,
+          color: widget.backgroundColor ?? tokens.canvas,
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // 垂直分割基线
+              // 垂直分割基线 (纤细纸质折痕线)
               AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
                 width: isActive ? 2.0 : 1.0,
@@ -76,8 +79,8 @@ class _PaneResizeHandleState extends State<PaneResizeHandle> {
               if (isActive)
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
-                  width: 4.0,
-                  height: 36.0,
+                  width: 3.5,
+                  height: 32.0,
                   decoration: BoxDecoration(
                     color: tokens.terracotta,
                     borderRadius: BorderRadius.circular(2.0),
@@ -85,7 +88,7 @@ class _PaneResizeHandleState extends State<PaneResizeHandle> {
                       BoxShadow(
                         color: tokens.terracotta.withValues(alpha: 0.3),
                         blurRadius: 4.0,
-                        spreadRadius: 1.0,
+                        spreadRadius: 0.5,
                       ),
                     ],
                   ),

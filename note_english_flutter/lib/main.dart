@@ -109,7 +109,7 @@ class NoteEnglishApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
-        title: 'NoteEnglish - 双语创作书房',
+        title: 'OtterJot - 双语创作书房',
         debugShowCheckedModeBanner: false,
         theme: AppThemeTokens.createThemeData(isDark: false),
         darkTheme: AppThemeTokens.createThemeData(isDark: true),

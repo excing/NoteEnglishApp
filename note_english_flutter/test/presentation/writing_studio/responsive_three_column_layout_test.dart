@@ -90,7 +90,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // 1. 验证默认展示：左边栏 (随笔列表) 常驻显示
-      expect(find.text('随笔手账'), findsOneWidget);
+      expect(find.text('OtterJot'), findsOneWidget);
       expect(find.text('新建随笔'), findsOneWidget);
 
       // 2. 验证主区域 (编辑) 显示
@@ -106,7 +106,7 @@ void main() {
       await tester.pumpAndSettle(); // 分析完成
 
       // 5. 验证三栏并存：左边栏 + 主区域 + 右边栏同时呈现
-      expect(find.text('随笔手账'), findsOneWidget); // 左边栏
+      expect(find.text('OtterJot'), findsOneWidget); // 左边栏
       expect(find.byKey(const ValueKey('diary_input_field')), findsOneWidget); // 主区域
       expect(find.byType(EditorialInspectorView), findsOneWidget); // 右边栏AI内容全量纯净呈现
 
@@ -115,18 +115,18 @@ void main() {
       await tester.pumpAndSettle();
 
       // 右边栏收起，恢复为左边栏+主区域
-      expect(find.text('随笔手账'), findsOneWidget);
+      expect(find.text('OtterJot'), findsOneWidget);
       expect(find.byKey(const ValueKey('diary_input_field')), findsOneWidget);
       expect(find.byType(EditorialInspectorView), findsNothing);
 
       // 7. 测试左侧边栏快捷折叠与恢复
       await tester.tap(find.byKey(const ValueKey('diary_drawer_button')));
       await tester.pumpAndSettle();
-      expect(find.text('随笔手账'), findsNothing); // 左边栏折叠
+      expect(find.text('OtterJot'), findsNothing); // 左边栏折叠
 
       await tester.tap(find.byKey(const ValueKey('diary_drawer_button')));
       await tester.pumpAndSettle();
-      expect(find.text('随笔手账'), findsOneWidget); // 左边栏恢复展开
+      expect(find.text('OtterJot'), findsOneWidget); // 左边栏恢复展开
     });
 
     testWidgets('平板尺寸 (Tablet: 720 <= width < 1024): 笔记列表侧滑，默认主区域，点击梳理右边栏显示',
@@ -140,14 +140,14 @@ void main() {
 
       // 1. 平板默认仅展示主区域，左边栏非常驻
       expect(find.byKey(const ValueKey('diary_input_field')), findsOneWidget);
-      expect(find.text('随笔手账'), findsNothing);
+      expect(find.text('OtterJot'), findsNothing);
       expect(find.byType(EditorialInspectorView), findsNothing);
 
       // 2. 点击左上角抽屉按钮，笔记列表从左侧滑出 (Drawer)
       await tester.tap(find.byKey(const ValueKey('diary_drawer_button')));
       await tester.pumpAndSettle();
       expect(find.byType(Drawer), findsOneWidget);
-      expect(find.text('随笔手账'), findsOneWidget);
+      expect(find.text('OtterJot'), findsOneWidget);
 
       // 关闭抽屉 (点击遮罩)
       await tester.tapAt(const Offset(800, 300));
@@ -180,14 +180,14 @@ void main() {
 
       // 1. 默认展示纯净单栏主区域
       expect(find.byKey(const ValueKey('diary_input_field')), findsOneWidget);
-      expect(find.text('随笔手账'), findsNothing);
+      expect(find.text('OtterJot'), findsNothing);
       expect(find.byKey(const ValueKey('close_ai_sidebar_button')), findsNothing);
 
       // 2. 点击左上角呼出侧滑抽屉
       await tester.tap(find.byKey(const ValueKey('diary_drawer_button')));
       await tester.pumpAndSettle();
       expect(find.byType(Drawer), findsOneWidget);
-      expect(find.text('随笔手账'), findsOneWidget);
+      expect(find.text('OtterJot'), findsOneWidget);
 
       // 关闭抽屉
       await tester.tapAt(const Offset(350, 400));
@@ -311,34 +311,34 @@ void main() {
       await tester.pumpAndSettle();
 
       // 1. 验证左边栏默认显示，初始宽度 320px
-      expect(find.text('随笔手账'), findsOneWidget);
+      expect(find.text('OtterJot'), findsOneWidget);
       final leftHandleFinder = find.byKey(const ValueKey('left_pane_resize_handle'));
       expect(leftHandleFinder, findsOneWidget);
 
       // 向左拖拽使其触达最小宽度 180px (320 -> 180 需要 140px，拖拽 -165px，多出 7px 计入弹性距离，远小于 100px)
       await tester.drag(leftHandleFinder, const Offset(-165, 0));
       await tester.pumpAndSettle();
-      expect(find.text('随笔手账'), findsOneWidget);
+      expect(find.text('OtterJot'), findsOneWidget);
       final leftDrawerSize = tester.getSize(find.byType(DiaryManagementDrawer));
       expect(leftDrawerSize.width, equals(180.0));
 
       // 用户继续向左拉动 60px (累计弹性距离 ~67px <= 100px) -> 停靠在 180px，不立即隐藏！
       await tester.drag(leftHandleFinder, const Offset(-60, 0));
       await tester.pumpAndSettle();
-      expect(find.text('随笔手账'), findsOneWidget);
+      expect(find.text('OtterJot'), findsOneWidget);
 
       // 用户继续持续向左拉动超过 100px 弹性距离 (例如继续拉动 -140px，净位移 > 100px)
       await tester.drag(leftHandleFinder, const Offset(-140, 0));
       await tester.pumpAndSettle();
 
       // 松手后正式触发隐藏收起
-      expect(find.text('随笔手账'), findsNothing);
+      expect(find.text('OtterJot'), findsNothing);
       expect(find.byKey(const ValueKey('left_pane_resize_handle')), findsNothing);
 
       // 再次点击左上角按钮，能够重新展开左边栏 (恢复默认 320px)
       await tester.tap(find.byKey(const ValueKey('diary_drawer_button')));
       await tester.pumpAndSettle();
-      expect(find.text('随笔手账'), findsOneWidget);
+      expect(find.text('OtterJot'), findsOneWidget);
 
       // 2. 打开右侧 AI 梳理视窗 (初始 380px)
       await tester.tap(find.byKey(const ValueKey('call_editor_button')));
@@ -393,25 +393,25 @@ void main() {
         await leftGesture.moveBy(const Offset(-20, 0));
         await tester.pump(const Duration(milliseconds: 20));
       }
-      expect(find.text('随笔手账'), findsNothing);
+      expect(find.text('OtterJot'), findsNothing);
       // 手柄由于用户尚未松手，在边缘保持活跃挂载
       expect(find.byKey(const ValueKey('left_pane_resize_handle')), findsOneWidget);
 
       // 用户未松手，往回（向右）拉 20px (< 30px 阈值) -> 依旧维持隐藏
       await leftGesture.moveBy(const Offset(20, 0));
       await tester.pump(const Duration(milliseconds: 20));
-      expect(find.text('随笔手账'), findsNothing);
+      expect(find.text('OtterJot'), findsNothing);
 
       // 用户未松手，继续往回（向右）拉 20px (累计达到 40px >= 30px) -> 触发还原显示！
       await leftGesture.moveBy(const Offset(20, 0));
       await tester.pump(const Duration(milliseconds: 20));
-      expect(find.text('随笔手账'), findsOneWidget);
+      expect(find.text('OtterJot'), findsOneWidget);
 
       // 松开手指
       await leftGesture.up();
       await tester.pumpAndSettle();
       // 松手后确认依然保持展开状态
-      expect(find.text('随笔手账'), findsOneWidget);
+      expect(find.text('OtterJot'), findsOneWidget);
 
       // === 2. 右边栏未松手反向拉动还原测试 ===
       await tester.tap(find.byKey(const ValueKey('call_editor_button')));

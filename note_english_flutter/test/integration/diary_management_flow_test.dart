@@ -92,7 +92,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 3. 抽屉内应显示两篇随笔
-    expect(find.text('随笔手账'), findsOneWidget);
+    expect(find.text('OtterJot'), findsOneWidget);
     expect(find.text('2 篇'), findsOneWidget);
     expect(
       find.descendant(

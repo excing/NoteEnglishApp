@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:note_english_flutter/application/settings/ai_settings_cubit.dart';
 import 'package:note_english_flutter/core/theme/app_theme_tokens.dart';
 import 'package:note_english_flutter/domain/models/config/ai_profile_config.dart';
+import 'package:note_english_flutter/presentation/common_widgets/otter_jot_avatar.dart';
 
 /// AI 接口配置对话框 (全平台自适应)
 class AiSettingsDialog extends StatefulWidget {
@@ -101,12 +102,19 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'AI 引擎与主编偏好配置',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const OtterJotAvatar(size: 26),
+                          const SizedBox(width: 8),
+                          Text(
+                            'AI 引擎与主编偏好配置',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                        ],
                       ),
                       IconButton(
                         icon: const Icon(Icons.close, size: 20),
@@ -116,7 +124,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    '支持任意 OpenAI 兼容的第三方服务商或中转端点',
+                    'OtterJot · 自定义 Jotty 主编服务端点与模型参数 (支持任意 OpenAI 兼容端点)',
                     style: TextStyle(fontSize: 13, color: tokens.textMuted),
                   ),
                   const SizedBox(height: 16),
@@ -185,13 +193,9 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
                                   baseUrl: _baseUrlCtrl.text.trim(),
                                   apiKey: _apiKeyCtrl.text.trim(),
                                 );
-                                context
-                                    .read<AiSettingsCubit>()
-                                    .saveConfig(tempConfig)
-                                    .then((_) {
-                                  context
-                                      .read<AiSettingsCubit>()
-                                      .fetchPlatformModels();
+                                final cubit = context.read<AiSettingsCubit>();
+                                cubit.saveConfig(tempConfig).then((_) {
+                                  cubit.fetchPlatformModels();
                                 });
                               },
                         style: OutlinedButton.styleFrom(

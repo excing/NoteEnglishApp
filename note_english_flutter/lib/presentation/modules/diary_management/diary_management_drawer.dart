@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:note_english_flutter/application/diary/diary_list_cubit.dart';
+import 'package:note_english_flutter/core/shortcuts/app_shortcuts.dart';
 import 'package:note_english_flutter/core/theme/app_theme_tokens.dart';
 import 'package:note_english_flutter/domain/models/diary/diary_entry.dart';
-import 'package:note_english_flutter/presentation/common_widgets/paper_card.dart';
+import 'package:note_english_flutter/presentation/common_widgets/otter_jot_avatar.dart';
 
 /// 随笔手账与管理抽屉 (Diary Management Drawer)
 class DiaryManagementDrawer extends StatefulWidget {
@@ -134,21 +135,20 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
                         Expanded(
                           child: Row(
                             children: [
-                              Icon(Icons.menu_book,
-                                  color: tokens.terracotta,
-                                  size: isUltraCompact ? 18 : 22),
-                              const SizedBox(width: 6),
+                              OtterJotAvatar(size: isUltraCompact ? 26 : 34),
+                              const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  '随笔手账',
+                                  'OtterJot',
                                   overflow: TextOverflow.ellipsis,
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleLarge
                                       ?.copyWith(
-                                        fontSize: isUltraCompact ? 14 : 18,
+                                        fontSize: isUltraCompact ? 16 : 20,
                                         fontWeight: FontWeight.bold,
                                         color: tokens.textPrimary,
+                                        letterSpacing: -0.2,
                                       ),
                                 ),
                               ),
@@ -181,7 +181,7 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
                             key: const ValueKey('new_diary_button'),
                             icon: const Icon(Icons.add, size: 20),
                             color: tokens.terracotta,
-                            tooltip: '新建随笔',
+                            tooltip: AppShortcuts.newEntryTooltip,
                             onPressed: () async {
                               final cubit = context.read<DiaryListCubit>();
                               final newEntry = await cubit.createEntry();
@@ -192,16 +192,18 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
                             },
                           )
                         else
-                          ElevatedButton.icon(
-                            key: const ValueKey('new_diary_button'),
-                            onPressed: () async {
-                              final cubit = context.read<DiaryListCubit>();
-                              final newEntry = await cubit.createEntry();
-                              widget.onEntryCreated?.call(newEntry);
-                              if (!widget.isPermanent && context.mounted) {
-                                Navigator.of(context).pop();
-                              }
-                            },
+                          Tooltip(
+                            message: AppShortcuts.newEntryTooltip,
+                            child: ElevatedButton.icon(
+                              key: const ValueKey('new_diary_button'),
+                              onPressed: () async {
+                                final cubit = context.read<DiaryListCubit>();
+                                final newEntry = await cubit.createEntry();
+                                widget.onEntryCreated?.call(newEntry);
+                                if (!widget.isPermanent && context.mounted) {
+                                  Navigator.of(context).pop();
+                                }
+                              },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: tokens.terracotta,
                               foregroundColor: Colors.white,
@@ -219,6 +221,7 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
                                   fontSize: 13, fontWeight: FontWeight.bold),
                             ),
                           ),
+                        ),
                       ],
                     ),
                   ),
@@ -340,79 +343,85 @@ class _DiaryManagementDrawerState extends State<DiaryManagementDrawer> {
   }
 
   Widget _buildCorpusButton(AppThemeTokens tokens) {
-    return InkWell(
-      key: const ValueKey('corpus_deck_button'),
-      borderRadius: BorderRadius.circular(10),
-      onTap: () {
-        if (!widget.isPermanent) {
-          Navigator.of(context).pop();
-        }
-        widget.onOpenCorpus?.call();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        decoration: BoxDecoration(
-          color: tokens.card,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: tokens.cardBorder),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.collections_bookmark_outlined,
-                size: 18, color: tokens.terracotta),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                '语料库',
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+    return Tooltip(
+      message: AppShortcuts.openCorpusTooltip,
+      child: InkWell(
+        key: const ValueKey('corpus_deck_button'),
+        borderRadius: BorderRadius.circular(10),
+        onTap: () {
+          if (!widget.isPermanent) {
+            Navigator.of(context).pop();
+          }
+          widget.onOpenCorpus?.call();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          decoration: BoxDecoration(
+            color: tokens.card,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: tokens.cardBorder),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.collections_bookmark_outlined,
+                  size: 18, color: tokens.terracotta),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  '语料库',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildSettingsButton(AppThemeTokens tokens) {
-    return InkWell(
-      key: const ValueKey('ai_settings_button'),
-      borderRadius: BorderRadius.circular(10),
-      onTap: () {
-        if (!widget.isPermanent) {
-          Navigator.of(context).pop();
-        }
-        widget.onOpenSettings?.call();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        decoration: BoxDecoration(
-          color: tokens.card,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: tokens.cardBorder),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.tune, size: 18, color: tokens.textPrimary),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                '主编设置',
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+    return Tooltip(
+      message: AppShortcuts.openSettingsTooltip,
+      child: InkWell(
+        key: const ValueKey('ai_settings_button'),
+        borderRadius: BorderRadius.circular(10),
+        onTap: () {
+          if (!widget.isPermanent) {
+            Navigator.of(context).pop();
+          }
+          widget.onOpenSettings?.call();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          decoration: BoxDecoration(
+            color: tokens.card,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: tokens.cardBorder),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.tune, size: 18, color: tokens.textPrimary),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  '主编设置',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

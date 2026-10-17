@@ -4,7 +4,6 @@ import 'package:note_english_flutter/domain/errors/ai_failure.dart';
 import 'package:note_english_flutter/domain/gateways/ai_gateway.dart';
 import 'package:note_english_flutter/domain/models/corpus/corpus_source.dart';
 import 'package:note_english_flutter/domain/models/diary/diary_entry.dart';
-import 'package:note_english_flutter/domain/models/inquiry/inquiry_response.dart';
 import 'package:note_english_flutter/domain/models/inquiry/inquiry_turn.dart';
 import 'package:note_english_flutter/domain/repositories/ai_config_repository.dart';
 import 'package:note_english_flutter/domain/repositories/corpus_repository.dart';
