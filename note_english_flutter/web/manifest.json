@@ -1,11 +1,11 @@
 {
-    "name": "note_english_flutter",
-    "short_name": "note_english_flutter",
+    "name": "OtterJot",
+    "short_name": "OtterJot",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FAF7F2",
+    "theme_color": "#B8593B",
+    "description": "OtterJot - Authentic English Writing & AI Editorial Studio",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
