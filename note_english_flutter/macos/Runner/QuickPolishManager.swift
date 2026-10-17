@@ -1,8 +1,9 @@
 import Cocoa
 import FlutterMacOS
+import UserNotifications
 
 /// macOS 原生菜单栏常驻与全局快捷键文本润色管理器
-class QuickPolishManager: NSObject {
+class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
   static let shared = QuickPolishManager()
 
   private var statusItem: NSStatusItem?
@@ -10,7 +11,9 @@ class QuickPolishManager: NSObject {
   private weak var mainWindow: NSWindow?
   private var globalMonitor: Any?
   private var localMonitor: Any?
-  private var isEnabled: Bool = true
+  private var eventTap: CFMachPort?
+  private var runLoopSource: CFRunLoopSource?
+  private var isEnabled: Bool = false
 
   func setup(flutterViewController: FlutterViewController, window: NSWindow) {
     self.mainWindow = window
@@ -20,8 +23,27 @@ class QuickPolishManager: NSObject {
     )
 
     setupMethodCallHandler()
-    setupStatusItem()
-    setupGlobalHotkeys()
+    setupNotifications()
+    // 默认关闭桌面菜单栏常驻与全局热键，由 Flutter 端根据持久化配置驱动 setQuickPolishEnabled 激活
+  }
+
+  private func setupNotifications() {
+    let center = UNUserNotificationCenter.current()
+    center.delegate = self
+    center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+  }
+
+  // 保证应用处于活动状态时也能直接在屏幕右上角弹出横幅
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    if #available(macOS 11.0, *) {
+      completionHandler([.banner, .sound, .list])
+    } else {
+      completionHandler([.alert, .sound])
+    }
   }
 
   // MARK: - Method Channel Handler
@@ -103,11 +125,11 @@ class QuickPolishManager: NSObject {
 
     menu.addItem(NSMenuItem.separator())
 
-    let openItem = NSMenuItem(title: "打开主窗口", action: #selector(openMainWindow), keyEquivalent: "o")
+    let openItem = NSMenuItem(title: "打开 OtterJot 主窗口", action: #selector(openMainWindow), keyEquivalent: "")
     openItem.target = self
     menu.addItem(openItem)
 
-    let quickPolishItem = NSMenuItem(title: "润色选中内容 (fn + 空格)", action: #selector(triggerQuickPolish), keyEquivalent: "")
+    let quickPolishItem = NSMenuItem(title: "润色选中内容 (fn + 空格 / ⌥ + 空格)", action: #selector(triggerQuickPolish), keyEquivalent: "")
     quickPolishItem.target = self
     menu.addItem(quickPolishItem)
 
@@ -141,25 +163,29 @@ class QuickPolishManager: NSObject {
     }
   }
 
-  // MARK: - Global Hotkey Listener (fn + Space & Option + Space)
+  // MARK: - Global Hotkey Listener (Dual-Engine: CGEventTap + NSEvent Monitor)
   private func setupGlobalHotkeys() {
     teardownGlobalHotkeys()
 
-    // 监听其他应用获得焦点时的全局按键
+    // 引擎 1: CGEventTap (底层内核驱动级按键拦截，灵敏度最高且能精准捕获 fn 与 option)
+    setupEventTap()
+
+    // 引擎 2: NSEvent Monitors (兼容兜底)
     globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
       self?.handleKeyEvent(event)
     }
 
-    // 监听当前应用自身获得焦点时的按键
     localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
       if self?.handleKeyEvent(event) == true {
-        return nil // 消费该事件，不继续传递
+        return nil
       }
       return event
     }
   }
 
   func teardownGlobalHotkeys() {
+    teardownEventTap()
+
     if let gm = globalMonitor {
       NSEvent.removeMonitor(gm)
       globalMonitor = nil
@@ -170,8 +196,89 @@ class QuickPolishManager: NSObject {
     }
   }
 
+  // MARK: - CGEventTap Implementation
+  private func setupEventTap() {
+    teardownEventTap()
+    guard isAccessibilityGranted() else { return }
+
+    let eventMask = (1 << CGEventType.keyDown.rawValue)
+    let observer = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
+
+    guard let tap = CGEvent.tapCreate(
+      tap: .cghidEventTap,
+      place: .headInsertEventTap,
+      options: .defaultTap,
+      eventsOfInterest: CGEventMask(eventMask),
+      callback: { (proxy, type, event, refcon) -> Unmanaged<CGEvent>? in
+        guard let refcon = refcon else { return Unmanaged.passRetained(event) }
+        let manager = Unmanaged<QuickPolishManager>.fromOpaque(refcon).takeUnretainedValue()
+
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+          manager.reEnableTap()
+          return Unmanaged.passRetained(event)
+        }
+
+        if manager.handleCGEvent(event) {
+          return nil // 消费该事件，不继续注入当前获得焦点的输入框
+        }
+        return Unmanaged.passRetained(event)
+      },
+      userInfo: observer
+    ) else {
+      NSLog("[OtterJot] Failed to create CGEventTap")
+      return
+    }
+
+    eventTap = tap
+    runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+    CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+    CGEvent.tapEnable(tap: tap, enable: true)
+  }
+
+  func reEnableTap() {
+    if let tap = eventTap {
+      CGEvent.tapEnable(tap: tap, enable: true)
+    }
+  }
+
+  func teardownEventTap() {
+    if let tap = eventTap {
+      CGEvent.tapEnable(tap: tap, enable: false)
+      if let source = runLoopSource {
+        CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
+        runLoopSource = nil
+      }
+      CFMachPortInvalidate(tap)
+      eventTap = nil
+    }
+  }
+
+  func handleCGEvent(_ event: CGEvent) -> Bool {
+    guard isEnabled else { return false }
+    let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+    let flags = event.flags
+
+    // 空格键 keyCode 为 49
+    guard keyCode == 49 else { return false }
+
+    let hasFn = flags.contains(.maskSecondaryFn)
+    let hasOption = flags.contains(.maskAlternate)
+    let hasCommand = flags.contains(.maskCommand)
+    let hasControl = flags.contains(.maskControl)
+
+    // 匹配 fn + 空格 或 ⌥ (Option) + 空格，排除 Cmd/Ctrl
+    if (hasFn || hasOption) && !hasCommand && !hasControl {
+      DispatchQueue.main.async { [weak self] in
+        self?.triggerQuickPolish()
+      }
+      return true
+    }
+    return false
+  }
+
   @discardableResult
   private func handleKeyEvent(_ event: NSEvent) -> Bool {
+    guard isEnabled else { return false }
     let isFunction = event.modifierFlags.contains(.function)
     let isOption = event.modifierFlags.contains(.option)
     let isCommand = event.modifierFlags.contains(.command)
@@ -189,61 +296,115 @@ class QuickPolishManager: NSObject {
 
   // MARK: - Text Extraction and In-Place Replacement
   @objc func triggerQuickPolish() {
-    guard isEnabled else { return }
+    guard isEnabled else {
+      postNotification(title: "OtterJot 提示", body: "全局快捷润色尚未开启，请在 OtterJot 设置中开启。")
+      NSSound.beep()
+      return
+    }
 
     guard isAccessibilityGranted() else {
       postNotification(
         title: "OtterJot 权限提示",
         body: "请先在「系统设置 - 隐私与安全性 - 辅助功能」中允许 OtterJot，以便自动读取并替换选中文本。"
       )
+      NSSound.beep()
       requestAccessibilityPermission()
       return
     }
 
+    // 延时 0.12 秒，确保若从状态栏菜单点击时，系统菜单已收起并将输入焦点还给原编辑窗口
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
+      guard let self = self else { return }
+      self.extractAndPolish()
+    }
+  }
+
+  private func extractAndPolish() {
+    // 方案 1: 优先通过 macOS Accessibility 原生读取当前活动元素的高亮选中文本
+    var capturedText = getSelectedTextViaAccessibility()
+
+    // 方案 2: 若 Accessibility 属性未获取到（如非原生应用），降级采用 Cmd + C 剪贴板提取
     let pasteboard = NSPasteboard.general
     let previousString = pasteboard.string(forType: .string)
 
-    // 1. 模拟 Cmd + C 抓取用户在外部应用中光标选中的文本
-    simulateKey(keyCode: 8, flags: .maskCommand) // ANSI 'C'
+    if capturedText == nil || capturedText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true {
+      let oldChangeCount = pasteboard.changeCount
+      simulateKey(keyCode: 8, flags: .maskCommand) // ANSI 'C'
 
-    // 2. 稍作等待给外部应用处理剪贴板写入
-    DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.08) { [weak self] in
+      // 等待剪贴板就绪
+      usleep(100_000) // 100ms
+      if pasteboard.changeCount != oldChangeCount || pasteboard.string(forType: .string) != previousString {
+        capturedText = pasteboard.string(forType: .string)
+      } else {
+        capturedText = pasteboard.string(forType: .string)
+      }
+    }
+
+    guard let text = capturedText, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+      postNotification(
+        title: "OtterJot 提示",
+        body: "未检测到选中文本。请先在任意应用中用光标选中一段文字后再试。"
+      )
+      NSSound.beep()
+      return
+    }
+
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    let preview = trimmed.count > 25 ? "\(trimmed.prefix(25))..." : trimmed
+    postNotification(title: "OtterJot 正在润色...", body: "\"\(preview)\" 正在重塑为母语级地道表达")
+
+    // 3. 调用 Flutter 领域的 QuickPolishService 进行母语级重塑
+    methodChannel?.invokeMethod("performQuickPolish", arguments: ["selectedText": text]) { [weak self] response in
       guard let self = self else { return }
-      let capturedText = pasteboard.string(forType: .string) ?? ""
-
-      // 如果抓取内容为空或未发生变化且无有效输入，则不触发
-      let trimmed = capturedText.trimmingCharacters(in: .whitespacesAndNewlines)
-      if trimmed.isEmpty {
+      guard let dict = response as? [String: Any],
+            let polishedText = dict["polishedText"] as? String,
+            !polishedText.isEmpty else {
+        self.postNotification(title: "OtterJot 提示", body: "润色服务未响应，请检查网络或设置。")
         return
       }
 
-      // 3. 调用 Flutter 领域的 QuickPolishService 进行母语级重塑
-      DispatchQueue.main.async {
-        self.methodChannel?.invokeMethod("performQuickPolish", arguments: ["selectedText": capturedText]) { [weak self] response in
-          guard let self = self else { return }
-          guard let dict = response as? [String: Any],
-                let polishedText = dict["polishedText"] as? String,
-                !polishedText.isEmpty else {
-            return
-          }
+      // 如果返回内容与原文完全一致，说明发生异常已退回原文
+      if polishedText == text {
+        return
+      }
 
-          // 4. 将润色后的文本写入剪贴板
+      // 4. 将润色后的文本写入剪贴板并回填
+      pasteboard.clearContents()
+      pasteboard.setString(polishedText, forType: .string)
+
+      // 5. 模拟 Cmd + V 在原位置无缝就地替换
+      self.simulateKey(keyCode: 9, flags: .maskCommand) // ANSI 'V'
+
+      // 6. 延时将剪贴板内容还原（可选恢复），避免污染用户历史剪贴板
+      DispatchQueue.global().asyncAfter(deadline: .now() + 0.4) {
+        if let prev = previousString {
           pasteboard.clearContents()
-          pasteboard.setString(polishedText, forType: .string)
-
-          // 5. 模拟 Cmd + V 在原位置无缝就地替换
-          self.simulateKey(keyCode: 9, flags: .maskCommand) // ANSI 'V'
-
-          // 6. 延时将剪贴板内容还原（可选恢复），避免污染用户剪贴板
-          DispatchQueue.global().asyncAfter(deadline: .now() + 0.3) {
-            if let prev = previousString {
-              pasteboard.clearContents()
-              pasteboard.setString(prev, forType: .string)
-            }
-          }
+          pasteboard.setString(prev, forType: .string)
         }
       }
     }
+  }
+
+  // MARK: - Native Accessibility Text Reader
+  private func getSelectedTextViaAccessibility() -> String? {
+    let systemWide = AXUIElementCreateSystemWide()
+    var focusedApp: CFTypeRef?
+    let appResult = AXUIElementCopyAttributeValue(systemWide, kAXFocusedApplicationAttribute as CFString, &focusedApp)
+    guard appResult == .success, let app = focusedApp else { return nil }
+
+    var focusedElement: CFTypeRef?
+    let elemResult = AXUIElementCopyAttributeValue(app as! AXUIElement, kAXFocusedUIElementAttribute as CFString, &focusedElement)
+    guard elemResult == .success, let element = focusedElement else { return nil }
+
+    var selectedValue: CFTypeRef?
+    let textResult = AXUIElementCopyAttributeValue(element as! AXUIElement, kAXSelectedTextAttribute as CFString, &selectedValue)
+    if textResult == .success, let str = selectedValue as? String {
+      let trimmed = str.trimmingCharacters(in: .whitespacesAndNewlines)
+      if !trimmed.isEmpty {
+        return str
+      }
+    }
+    return nil
   }
 
   private func simulateKey(keyCode: CGKeyCode, flags: CGEventFlags) {
@@ -271,16 +432,27 @@ class QuickPolishManager: NSObject {
     }
   }
 
-  // MARK: - User Notifications
+  // MARK: - Modern User Notifications
   func postNotification(title: String, body: String) {
-    let notification = NSUserNotification()
-    notification.title = title
-    notification.informativeText = body
-    notification.soundName = NSUserNotificationDefaultSoundName
-    NSUserNotificationCenter.default.deliver(notification)
+    let content = UNMutableNotificationContent()
+    content.title = title
+    content.body = body
+    content.sound = UNNotificationSound.default
+
+    let request = UNNotificationRequest(
+      identifier: UUID().uuidString,
+      content: content,
+      trigger: nil
+    )
+    UNUserNotificationCenter.current().add(request) { error in
+      if let error = error {
+        NSLog("[OtterJot] UNUserNotificationCenter add error: \(error.localizedDescription)")
+      }
+    }
   }
 
   deinit {
+    teardownEventTap()
     if let gm = globalMonitor {
       NSEvent.removeMonitor(gm)
     }

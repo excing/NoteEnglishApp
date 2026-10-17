@@ -25,6 +25,10 @@
    - 为 Android、iOS、macOS、Windows、Linux 和 Web 端生成并适配了全套高分辨率水獭主编图标。
 4. **Web 端自动部署到 GitHub Pages**：
    - 每次发布新版本时，Web 端静态站点将自动部署更新至 GitHub Pages，支持在线免安装直接体验：[https://excing.github.io/NoteEnglishApp/](https://excing.github.io/NoteEnglishApp/)。
+5. **划词润色与系统通知稳定性修复 (Bug Fixes)**：
+   - 采用现代 `UNUserNotificationCenter` 替代废弃的通知 API，提升系统通知投递稳定性；
+   - 新增 macOS Accessibility 原生文本抓取通路，大幅提升第三方 App 划词选中文本的识别率；
+   - 优化划词润色默认初始状态为关闭，完善未配置 API 或空选区时的降级提示与剪贴板防污染还原机制。
 
 ---
 

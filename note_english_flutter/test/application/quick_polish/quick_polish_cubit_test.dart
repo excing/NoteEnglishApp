@@ -52,23 +52,33 @@ void main() {
       cubit.close();
     });
 
-    test('initial state is idle and handler is registered', () {
+    test('initial state is idle and handler is registered with disabled by default', () {
       expect(cubit.state.status, QuickPolishStatus.idle);
-      expect(cubit.state.isEnabled, isTrue);
+      expect(cubit.state.isEnabled, isFalse);
       expect(cubit.state.isAccessibilityGranted, isTrue);
       verify(() => mockGateway.setQuickPolishHandler(any())).called(1);
     });
 
-    test('initialize loads enabled state from storage and checks permission if enabled', () async {
-      when(() => mockStorage.readString('quick_polish_enabled')).thenAnswer((_) async => 'false');
+    test('initialize defaults to disabled when no storage record exists', () async {
+      when(() => mockStorage.readString('quick_polish_enabled')).thenAnswer((_) async => null);
 
       await cubit.initialize();
 
       expect(cubit.state.isEnabled, isFalse);
       verify(() => mockGateway.initialize()).called(1);
       verify(() => mockGateway.setQuickPolishEnabled(false)).called(1);
-      // disabled时不应该重复检查权限
       verifyNever(() => mockGateway.isAccessibilityGranted());
+    });
+
+    test('initialize loads enabled state when stored value is true', () async {
+      when(() => mockStorage.readString('quick_polish_enabled')).thenAnswer((_) async => 'true');
+
+      await cubit.initialize();
+
+      expect(cubit.state.isEnabled, isTrue);
+      verify(() => mockGateway.initialize()).called(1);
+      verify(() => mockGateway.setQuickPolishEnabled(true)).called(1);
+      verify(() => mockGateway.isAccessibilityGranted()).called(1);
     });
 
     test('toggleEnabled(false) updates state, persists, and notifies gateway', () async {
@@ -114,6 +124,7 @@ void main() {
     });
 
     test('successful polish transitions through processing to success and returns polished text', () async {
+      await cubit.toggleEnabled(true);
       const mockResult = QuickPolishResult(
         originalText: '今天下雨',
         polishedText: 'It is pouring rain today.',
@@ -132,6 +143,7 @@ void main() {
     });
 
     test('failure during polish transitions to failure and safely returns original text', () async {
+      await cubit.toggleEnabled(true);
       when(() => mockService.executeQuickPolish('测试文本')).thenThrow(
         const AiConfigNotSetFailure('API Key 未设置'),
       );

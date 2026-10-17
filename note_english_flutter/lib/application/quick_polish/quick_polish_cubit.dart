@@ -27,7 +27,7 @@ class QuickPolishCubit extends Cubit<QuickPolishState> {
   Future<void> initialize() async {
     await _platformGateway.initialize();
 
-    var isEnabled = true;
+    var isEnabled = false; // 默认关闭桌面菜单栏与全局快捷润色
     if (_storageEngine != null) {
       final storedVal = await _storageEngine.readString(_storageKeyEnabled);
       if (storedVal != null) {

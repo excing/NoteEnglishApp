@@ -15,7 +15,7 @@ class QuickPolishState extends Equatable {
     this.lastResult,
     this.errorMessage,
     this.isAccessibilityGranted = true,
-    this.isEnabled = true,
+    this.isEnabled = false,
   });
 
   QuickPolishState copyWith({
