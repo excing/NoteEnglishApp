@@ -50,3 +50,13 @@
 4. `test/infrastructure/adapters/openai_compatible_ai_gateway_test.dart`：验证第三方 API 契约与模型列表拉取。
 5. `test/application/editorial/diary_editorial_cubit_test.dart`：验证梳理全流程与语料自动入库数据流。
 6. `test/widget_test.dart`：验证主界面组件树正常挂载。
+
+---
+
+## 三、工程化与 CI/CD 自动化
+- **全平台打包流水线**：[`.github/workflows/build-and-release.yml`](../.github/workflows/build-and-release.yml)
+  - 覆盖平台：Android (`.apk`, `.aab`)、iOS (`.ipa`, `.zip`)、macOS (`.dmg`, `.zip`)、Windows (`.zip`)、Linux (`.tar.gz`)、Web (`.zip`)。
+  - 触发方式：支持推送版本 Tag（如 `v1.0.0`）自动创建 GitHub Release，或通过 GitHub Actions 手动调度打包。
+- **代码质量流水线**：[`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
+  - 针对 PR / push 触发，执行 `flutter analyze` 静态分析与全量单元测试。
+- **详细操作手册**：参见 [`docs/CI_CD_GUIDE.md`](CI_CD_GUIDE.md)。
