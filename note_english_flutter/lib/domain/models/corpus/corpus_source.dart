@@ -3,7 +3,8 @@ import 'package:equatable/equatable.dart';
 /// 语料来源类型
 enum CorpusSourceType {
   analysis('随笔梳理'),
-  inquiry('交互追问');
+  inquiry('交互追问'),
+  quickPolish('快捷润色');
 
   final String label;
   const CorpusSourceType(this.label);
@@ -33,12 +34,16 @@ class CorpusSource extends Equatable {
   }
 
   factory CorpusSource.fromJson(Map<String, dynamic> json) {
+    final typeName = json['sourceType'] as String?;
+    final resolvedType = CorpusSourceType.values.firstWhere(
+      (e) => e.name == typeName,
+      orElse: () => CorpusSourceType.analysis,
+    );
+
     return CorpusSource(
       diaryId: json['diaryId'] as String? ?? '',
       sourceSnippet: json['sourceSnippet'] as String? ?? '',
-      sourceType: (json['sourceType'] as String?) == CorpusSourceType.inquiry.name
-          ? CorpusSourceType.inquiry
-          : CorpusSourceType.analysis,
+      sourceType: resolvedType,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : DateTime.now(),

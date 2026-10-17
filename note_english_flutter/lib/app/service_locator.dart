@@ -9,6 +9,10 @@ import 'package:note_english_flutter/domain/services/corpus_ingestion_service.da
 import 'package:note_english_flutter/domain/services/prompt_template_engine.dart';
 import 'package:note_english_flutter/infrastructure/adapters/ai/openai_compatible_ai_gateway.dart';
 import 'package:note_english_flutter/infrastructure/adapters/weather/open_meteo_weather_gateway.dart';
+import 'package:note_english_flutter/application/quick_polish/quick_polish_cubit.dart';
+import 'package:note_english_flutter/domain/gateways/quick_polish_platform_gateway.dart';
+import 'package:note_english_flutter/domain/services/quick_polish_service.dart';
+import 'package:note_english_flutter/infrastructure/gateways/method_channel_quick_polish_platform_gateway.dart';
 import 'package:note_english_flutter/infrastructure/repositories/local_corpus_repository.dart';
 import 'package:note_english_flutter/infrastructure/repositories/local_diary_repository.dart';
 import 'package:note_english_flutter/infrastructure/repositories/secure_ai_config_repository.dart';
@@ -29,6 +33,9 @@ Future<void> setupServiceLocator({IStorageEngine? customStorageEngine}) async {
   // 2. 基础设施网关与适配器
   sl.registerLazySingleton<IAiGateway>(() => OpenAiCompatibleAiGateway());
   sl.registerLazySingleton<IWeatherGateway>(() => OpenMeteoWeatherGateway());
+  sl.registerLazySingleton<IQuickPolishPlatformGateway>(
+    () => MethodChannelQuickPolishPlatformGateway(),
+  );
 
   // 3. 持久化仓储层 (全平台文件原子刷盘保障)
   sl.registerLazySingleton<IDiaryRepository>(
@@ -41,6 +48,23 @@ Future<void> setupServiceLocator({IStorageEngine? customStorageEngine}) async {
     () => SecureAiConfigRepository(
       storageEngine: sl<IStorageEngine>(),
       secureStorage: const FlutterSecureStorage(),
+    ),
+  );
+
+  // 4. 快捷润色领域服务与 Cubit
+  sl.registerLazySingleton<QuickPolishService>(
+    () => QuickPolishService(
+      aiGateway: sl<IAiGateway>(),
+      configRepository: sl<IAiConfigRepository>(),
+      corpusRepository: sl<ICorpusRepository>(),
+      promptTemplateEngine: sl<PromptTemplateEngine>(),
+      corpusIngestionService: sl<CorpusIngestionService>(),
+    ),
+  );
+  sl.registerLazySingleton<QuickPolishCubit>(
+    () => QuickPolishCubit(
+      platformGateway: sl<IQuickPolishPlatformGateway>(),
+      quickPolishService: sl<QuickPolishService>(),
     ),
   );
 }

@@ -4,9 +4,12 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:note_english_flutter/application/diary/diary_list_cubit.dart';
 import 'package:note_english_flutter/application/editorial/diary_editorial_cubit.dart';
 import 'package:note_english_flutter/application/inquiry/inquiry_cubit.dart';
+import 'package:note_english_flutter/application/quick_polish/quick_polish_cubit.dart';
 import 'package:note_english_flutter/application/settings/ai_settings_cubit.dart';
 import 'package:note_english_flutter/app/service_locator.dart';
 import 'package:note_english_flutter/core/theme/app_theme_tokens.dart';
+import 'package:note_english_flutter/domain/gateways/ai_gateway.dart';
+import 'package:note_english_flutter/domain/gateways/quick_polish_platform_gateway.dart';
 import 'package:note_english_flutter/domain/gateways/weather_gateway.dart';
 import 'package:note_english_flutter/domain/models/config/ai_profile_config.dart';
 import 'package:note_english_flutter/domain/models/diary/diary_entry.dart';
@@ -15,6 +18,8 @@ import 'package:note_english_flutter/domain/models/diary/weather_condition.dart'
 import 'package:note_english_flutter/domain/repositories/ai_config_repository.dart';
 import 'package:note_english_flutter/domain/repositories/corpus_repository.dart';
 import 'package:note_english_flutter/domain/repositories/diary_repository.dart';
+import 'package:note_english_flutter/domain/services/quick_polish_service.dart';
+import 'package:note_english_flutter/infrastructure/gateways/method_channel_quick_polish_platform_gateway.dart';
 import 'package:note_english_flutter/presentation/modules/writing_studio/writing_studio_page.dart';
 
 void main() async {
@@ -30,6 +35,11 @@ Future<void> startNoteEnglishApp() async {
 
   // 初始化服务定位器与依赖注入 (Single Source of Truth)
   await setupServiceLocator();
+
+  // 初始化全局快捷润色与菜单栏常驻后台宿主
+  try {
+    await sl<QuickPolishCubit>().initialize();
+  } catch (_) {}
 
   // 恢复持久化配置与随笔 (保证应用启动后设置与内容均为同步可用)
   final configRepo = sl<IAiConfigRepository>();
@@ -107,6 +117,25 @@ class NoteEnglishApp extends StatelessWidget {
             initialConfig: initialConfig,
           ),
         ),
+        if (sl.isRegistered<QuickPolishCubit>())
+          BlocProvider<QuickPolishCubit>.value(
+            value: sl<QuickPolishCubit>(),
+          )
+        else
+          BlocProvider<QuickPolishCubit>(
+            create: (_) => QuickPolishCubit(
+              platformGateway: sl.isRegistered<IQuickPolishPlatformGateway>()
+                  ? sl<IQuickPolishPlatformGateway>()
+                  : MethodChannelQuickPolishPlatformGateway(),
+              quickPolishService: sl.isRegistered<QuickPolishService>()
+                  ? sl<QuickPolishService>()
+                  : QuickPolishService(
+                      aiGateway: sl<IAiGateway>(),
+                      configRepository: sl<IAiConfigRepository>(),
+                      corpusRepository: sl<ICorpusRepository>(),
+                    ),
+            ),
+          ),
       ],
       child: MaterialApp(
         title: 'OtterJot - 双语创作书房',

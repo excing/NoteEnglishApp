@@ -135,4 +135,32 @@ ${AiContracts.inquirySchemaInstruction}
       userMessage: buffer.toString().trim(),
     );
   }
+
+  /// 组装快捷快速润色提示词
+  PromptBundle buildQuickPolishPromptBundle({
+    required String selectedText,
+    String? customSystemPrompt,
+  }) {
+    final effectiveStylePrompt = (customSystemPrompt != null &&
+            customSystemPrompt.trim().isNotEmpty)
+        ? customSystemPrompt.trim()
+        : AiContracts.defaultEditorialSystemPrompt;
+
+    final systemPrompt = '''
+$effectiveStylePrompt
+
+${AiContracts.quickPolishSchemaInstruction}
+''';
+
+    final userMessage = '''
+请将以下用户选中的内容进行地道化快速润色重塑。若内容为中文，请翻译为地道、优雅自然的纯正母语级英文；若内容已为英文，请消除中式英文与生硬表达，提升文采与地道度：
+
+$selectedText
+''';
+
+    return PromptBundle(
+      systemPrompt: systemPrompt.trim(),
+      userMessage: userMessage.trim(),
+    );
+  }
 }

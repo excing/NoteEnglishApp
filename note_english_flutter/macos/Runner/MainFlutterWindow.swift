@@ -13,6 +13,7 @@ class MainFlutterWindow: NSWindow {
     self.title = "OtterJot"
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+    QuickPolishManager.shared.setup(flutterViewController: flutterViewController, window: self)
 
     super.awakeFromNib()
   }

@@ -30,5 +30,7 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>OtterJot 需要辅助功能权限以便在任意输入框中抓取选中文本并就地润色替换。</string>
 </dict>
 </plist>

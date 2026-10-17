@@ -67,6 +67,9 @@ JSON 必须严格遵循以下结构规范：
 }
 ''';
 
+  // ================= 快捷快速润色结构化字段键名 =================
+  static const String keyQuickPolishedText = 'polishedText';
+
   // ================= 追问的不可篡改系统底座协议 =================
   static const String inquirySchemaInstruction = '''
 【重要约束：追问输出格式协议】
@@ -85,6 +88,24 @@ JSON 必须严格遵循以下结构规范：
       "$keyCorpusPhonetic": "国际音标",
       "$keyCorpusMeaning": "精准中文释义",
       "$keyCorpusUsageContext": "核心用法说明"
+    }
+  ]
+}
+''';
+
+  // ================= 快捷快速润色不可篡改系统底座协议 =================
+  static const String quickPolishSchemaInstruction = '''
+【重要约束：快捷润色输出格式协议】
+你必须且只能返回纯 JSON 对象，严禁包含任何 Markdown 格式代码块围栏（如 ```json），严禁输出任何多余的解释文字。
+JSON 必须严格遵循以下结构规范：
+{
+  "$keyQuickPolishedText": "重塑后的纯正、地道母语级英文文本（直接用于替换用户选中的输入内容，保持原意但词句更加生动自然，严禁带有多余引号或前缀解释）",
+  "$keyExtractedCorpus": [
+    {
+      "$keyCorpusExpression": "本次润色中运用的高价值地道表达或词汇 (若无则为空数组 [])",
+      "$keyCorpusPhonetic": "国际音标",
+      "$keyCorpusMeaning": "精准中文释义",
+      "$keyCorpusUsageContext": "用法简析"
     }
   ]
 }

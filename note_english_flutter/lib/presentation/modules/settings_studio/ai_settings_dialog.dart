@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:note_english_flutter/app/service_locator.dart';
+import 'package:note_english_flutter/application/quick_polish/quick_polish_cubit.dart';
+import 'package:note_english_flutter/application/quick_polish/quick_polish_state.dart';
 import 'package:note_english_flutter/application/settings/ai_settings_cubit.dart';
 import 'package:note_english_flutter/core/theme/app_theme_tokens.dart';
 import 'package:note_english_flutter/domain/models/config/ai_profile_config.dart';
@@ -237,6 +240,8 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
                       height: 1.4,
                     ),
                   ),
+                  const SizedBox(height: 20),
+                  _buildQuickPolishSection(context, tokens),
                   const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -278,6 +283,263 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
           ),
         );
       },
+    );
+  }
+
+  QuickPolishCubit? _getQuickPolishCubit(BuildContext context) {
+    try {
+      return context.read<QuickPolishCubit>();
+    } catch (_) {
+      if (sl.isRegistered<QuickPolishCubit>()) {
+        return sl<QuickPolishCubit>();
+      }
+      return null;
+    }
+  }
+
+  Widget _buildQuickPolishSection(BuildContext context, AppThemeTokens tokens) {
+    final cubit = _getQuickPolishCubit(context);
+    if (cubit == null) return const SizedBox.shrink();
+
+    return BlocBuilder<QuickPolishCubit, QuickPolishState>(
+      bloc: cubit,
+      builder: (context, state) {
+        return Container(
+          decoration: BoxDecoration(
+            color: tokens.card,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: tokens.cardBorder),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.bolt, size: 20, color: tokens.terracotta),
+                            const SizedBox(width: 6),
+                            Text(
+                              '全局快捷润色 (fn + 空格)',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: tokens.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '常驻桌面菜单栏，选中文本按下快捷键即可原地重塑为地道英文并自动沉淀语料。',
+                          style: TextStyle(fontSize: 12, color: tokens.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Switch.adaptive(
+                    key: const ValueKey('quick_polish_switch'),
+                    value: state.isEnabled,
+                    activeTrackColor: tokens.terracotta,
+                    activeThumbColor: Colors.white,
+                    onChanged: (val) {
+                      cubit.toggleEnabled(val);
+                    },
+                  ),
+                ],
+              ),
+              if (state.isEnabled) ...[
+                const SizedBox(height: 12),
+                if (state.isAccessibilityGranted)
+                  _buildGrantedStatus(context, cubit, tokens)
+                else
+                  _buildGuideCard(context, cubit, tokens),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGrantedStatus(
+    BuildContext context,
+    QuickPolishCubit cubit,
+    AppThemeTokens tokens,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: tokens.sage.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: tokens.sage.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.check_circle_outline, size: 18, color: tokens.sage),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '辅助功能已授权，快捷润色随时就绪 (fn + 空格 / ⌥ + 空格)',
+              style: TextStyle(
+                fontSize: 12,
+                color: tokens.textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          TextButton(
+            key: const ValueKey('recheck_permission_button'),
+            onPressed: () => cubit.checkAccessibilityPermission(),
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+            child: Text(
+              '重新检测',
+              style: TextStyle(fontSize: 12, color: tokens.sage),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuideCard(
+    BuildContext context,
+    QuickPolishCubit cubit,
+    AppThemeTokens tokens,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: tokens.amber.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: tokens.amber.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, size: 20, color: tokens.amber),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '需要授予 macOS 系统辅助功能权限',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: tokens.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '为了在任意第三方应用（如微信、Slack、浏览器）的输入框中模拟快捷键抓取选中文本并原地回填地道英文，macOS 要求授予 OtterJot 辅助功能权限。',
+            style: TextStyle(fontSize: 12, color: tokens.textMuted, height: 1.4),
+          ),
+          const SizedBox(height: 10),
+          _buildGuideStep('1', '点击下方「前往系统设置授权」，系统将直接跳转至「辅助功能」设置；', tokens),
+          const SizedBox(height: 4),
+          _buildGuideStep('2', '若列表中已出现「OtterJot」，请直接将右侧开关切换为允许；', tokens),
+          const SizedBox(height: 4),
+          _buildGuideStep('3', '若列表中未出现「OtterJot」：点击下方「在访达中定位应用」，将高亮选中的 OtterJot 拖入系统列表，或点击系统列表底部的「+」号添加；', tokens),
+          const SizedBox(height: 4),
+          _buildGuideStep('4', '授权完成后返回此处，点击「已完成授权，重新检测」。', tokens),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              ElevatedButton.icon(
+                key: const ValueKey('request_permission_button'),
+                onPressed: () => cubit.requestAccessibilityPermission(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: tokens.terracotta,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                icon: const Icon(Icons.open_in_new, size: 14),
+                label: const Text('前往系统设置授权'),
+              ),
+              OutlinedButton.icon(
+                key: const ValueKey('locate_in_finder_button'),
+                onPressed: () => cubit.openAppInFinder(),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: tokens.cardBorder),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  textStyle: const TextStyle(fontSize: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                icon: Icon(Icons.folder_open, size: 14, color: tokens.textPrimary),
+                label: Text('在访达中定位应用 (拖入列表)', style: TextStyle(color: tokens.textPrimary)),
+              ),
+              OutlinedButton.icon(
+                key: const ValueKey('recheck_permission_button'),
+                onPressed: () => cubit.checkAccessibilityPermission(),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: tokens.cardBorder),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  textStyle: const TextStyle(fontSize: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                icon: Icon(Icons.refresh, size: 14, color: tokens.textPrimary),
+                label: Text('已完成授权，重新检测', style: TextStyle(color: tokens.textPrimary)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuideStep(String number, String text, AppThemeTokens tokens) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: tokens.amber.withValues(alpha: 0.25),
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            number,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: tokens.amber,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 12, color: tokens.textPrimary),
+          ),
+        ),
+      ],
     );
   }
 
