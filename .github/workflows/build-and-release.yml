@@ -205,7 +205,13 @@ jobs:
           fi
           echo "Found macOS App: $APP_PATH"
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" artifacts/NoteEnglishApp-macOS.zip
-          hdiutil create -volname "NoteEnglish" -srcfolder "$APP_PATH" -ov -format UDZO artifacts/NoteEnglishApp-macOS.dmg
+          
+          # 创建包含 Applications 快捷方式软链接的标准 DMG 结构
+          mkdir -p dmg_staging
+          cp -R "$APP_PATH" dmg_staging/
+          ln -s /Applications dmg_staging/Applications
+          hdiutil create -volname "NoteEnglish" -srcfolder dmg_staging -ov -format UDZO artifacts/NoteEnglishApp-macOS.dmg
+          rm -rf dmg_staging
 
       - name: Upload macOS Artifacts
         uses: actions/upload-artifact@v4
