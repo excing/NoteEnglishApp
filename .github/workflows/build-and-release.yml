@@ -379,6 +379,7 @@ jobs:
         with:
           tag_name: ${{ steps.vars.outputs.tag }}
           name: Release ${{ steps.vars.outputs.tag }}
+          body_path: RELEASE_NOTES.md
           draft: ${{ github.event.inputs.draft == true }}
           prerelease: ${{ github.event.inputs.prerelease == true }}
           files: final-assets/*
