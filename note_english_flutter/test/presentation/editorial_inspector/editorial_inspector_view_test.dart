@@ -4,10 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:note_english_flutter/application/inquiry/inquiry_cubit.dart';
 import 'package:note_english_flutter/core/theme/app_theme_tokens.dart';
-import 'package:note_english_flutter/domain/contracts/ai_contracts.dart';
 import 'package:note_english_flutter/domain/gateways/ai_gateway.dart';
 import 'package:note_english_flutter/domain/services/prompt_template_engine.dart';
 import 'package:note_english_flutter/domain/models/analysis/diary_analysis_result.dart';
+import 'package:note_english_flutter/domain/models/analysis/translation_item.dart';
 import 'package:note_english_flutter/domain/models/config/ai_profile_config.dart';
 import 'package:note_english_flutter/domain/models/corpus/corpus_draft.dart';
 import 'package:note_english_flutter/domain/models/corpus/corpus_item.dart';
@@ -153,5 +153,50 @@ void main() {
     expect(find.textContaining('用具体天气微动词替代通用的 rain'), findsOneWidget);
     expect(find.textContaining('It drizzled throughout the morning.'), findsOneWidget);
     expect(find.textContaining('已收录: drizzly afternoon'), findsOneWidget);
+  });
+
+  testWidgets('EditorialInspectorView handles long non-English items without overflow under narrow width',
+      (WidgetTester tester) async {
+    const analysisWithLongItems = DiaryAnalysisResult(
+      originalStyleEnglishVersion: 'English version',
+      authenticAdvancedVersion: 'Advanced version',
+      nonEnglishItems: [
+        NonEnglishTranslationItem(
+          original: '侄女',
+          meaning: "nieces or nephews (younger siblings' children)",
+          explanation: 'A Chinese kinship term referring to family members who are siblings of your siblings.',
+        ),
+        NonEnglishTranslationItem(
+          original: '学校升降机',
+          meaning: 'school elevator/lift',
+          explanation: "Literal translation of 'school lift' used in the context of discussing transportation.",
+        ),
+      ],
+    );
+
+    tester.view.physicalSize = const Size(280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppThemeTokens.createThemeData(isDark: false),
+        home: Scaffold(
+          body: BlocProvider.value(
+            value: inquiryCubit,
+            child: EditorialInspectorView(
+              analysisResult: analysisWithLongItems,
+              currentEntry: sampleEntry,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('非英文字词翻译及解释'), findsOneWidget);
+    expect(find.textContaining('侄女'), findsOneWidget);
+    expect(find.textContaining("nieces or nephews"), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

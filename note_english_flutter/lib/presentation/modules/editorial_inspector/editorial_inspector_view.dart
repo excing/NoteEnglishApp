@@ -119,6 +119,7 @@ class _EditorialInspectorViewState extends State<EditorialInspectorView> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 item.original,
@@ -129,12 +130,14 @@ class _EditorialInspectorViewState extends State<EditorialInspectorView> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                '→  ${item.meaning}',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: tokens.textPrimary,
+                              Expanded(
+                                child: Text(
+                                  '→  ${item.meaning}',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: tokens.textPrimary,
+                                  ),
                                 ),
                               ),
                             ],
@@ -360,12 +363,14 @@ class _EditorialInspectorViewState extends State<EditorialInspectorView> {
                           Icon(Icons.collections_bookmark_outlined,
                               size: 16, color: tokens.sage),
                           const SizedBox(width: 6),
-                          Text(
-                            '已自动将 ${widget.silentCorpusCount} 条核心生动表达收录进专属语料库',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: tokens.sage,
-                              fontWeight: FontWeight.w500,
+                          Flexible(
+                            child: Text(
+                              '已自动将 ${widget.silentCorpusCount} 条核心生动表达收录进专属语料库',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: tokens.sage,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                         ],
