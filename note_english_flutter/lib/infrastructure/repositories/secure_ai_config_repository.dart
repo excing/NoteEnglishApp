@@ -29,7 +29,7 @@ class SecureAiConfigRepository implements IAiConfigRepository {
     // 1. 优先从文件持久化引擎读取
     if (_storageEngine != null) {
       try {
-        final rawJson = await _storageEngine!.readString(_keyProfile);
+        final rawJson = await _storageEngine.readString(_keyProfile);
         if (rawJson != null && rawJson.trim().isNotEmpty) {
           final map = json.decode(rawJson) as Map<String, dynamic>;
           var config = AiProfileConfig.fromJson(map);
@@ -37,7 +37,7 @@ class SecureAiConfigRepository implements IAiConfigRepository {
           // 尝试读取独立安全存储的 API Key (若存在)
           if (_secureStorage != null) {
             try {
-              final secureKey = await _secureStorage!.read(key: _secureApiKey);
+              final secureKey = await _secureStorage.read(key: _secureApiKey);
               if (secureKey != null && secureKey.trim().isNotEmpty) {
                 config = config.copyWith(apiKey: secureKey);
               }
@@ -53,7 +53,7 @@ class SecureAiConfigRepository implements IAiConfigRepository {
     // 2. 备选从独立 secureStorage 读取
     if (_secureStorage != null) {
       try {
-        final secureKey = await _secureStorage!.read(key: _secureApiKey);
+        final secureKey = await _secureStorage.read(key: _secureApiKey);
         if (secureKey != null && secureKey.trim().isNotEmpty) {
           final cfg = const AiProfileConfig().copyWith(apiKey: secureKey);
           _cachedConfig = cfg;
@@ -75,14 +75,14 @@ class SecureAiConfigRepository implements IAiConfigRepository {
     if (_storageEngine != null) {
       try {
         final map = config.toJson();
-        await _storageEngine!.writeString(_keyProfile, json.encode(map));
+        await _storageEngine.writeString(_keyProfile, json.encode(map));
       } catch (_) {}
     }
 
     // 2. 尝试向安全存储写入 API Key
     if (_secureStorage != null) {
       try {
-        await _secureStorage!.write(
+        await _secureStorage.write(
           key: _secureApiKey,
           value: config.apiKey.trim(),
         );

@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:note_english_flutter/domain/models/analysis/diary_analysis_result.dart';
 import 'package:note_english_flutter/domain/models/corpus/corpus_draft.dart';
-import 'package:note_english_flutter/domain/models/corpus/corpus_item.dart';
 import 'package:note_english_flutter/domain/models/corpus/corpus_source.dart';
 import 'package:note_english_flutter/domain/models/corpus/mastery_status.dart';
 import 'package:note_english_flutter/domain/models/diary/diary_entry.dart';

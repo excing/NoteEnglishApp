@@ -19,7 +19,7 @@ class FileStorageEngine implements IStorageEngine {
 
   Future<Directory> _getRootDir() async {
     if (_customDirectory != null) {
-      return _customDirectory!;
+      return _customDirectory;
     }
     if (_resolvedDir != null) {
       return _resolvedDir!;

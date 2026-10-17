@@ -140,12 +140,12 @@ void main() {
           DiaryAnalysisStatus.analyzing,
         ),
         isA<DiaryEditorialState>()
-          ..having((s) => s.status, 'status', DiaryAnalysisStatus.failed)
-          ..having(
-            (s) => s.errorMessage,
-            'errorMessage',
-            contains('尚未配置 AI 接口'),
-          ),
+            .having((s) => s.status, 'status', DiaryAnalysisStatus.failed)
+            .having(
+              (s) => s.errorMessage,
+              'errorMessage',
+              contains('尚未配置 AI 接口'),
+            ),
       ],
       verify: (_) {
         verifyNever(() => aiGateway.analyzeDiary(

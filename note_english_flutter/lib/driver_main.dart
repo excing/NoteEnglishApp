@@ -1,8 +1,8 @@
+// ignore_for_file: depend_on_referenced_packages
 import 'package:flutter/material.dart';
 import 'package:flutter_driver/driver_extension.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:note_english_flutter/app/service_locator.dart';
-import 'package:note_english_flutter/domain/models/config/ai_profile_config.dart';
 import 'package:note_english_flutter/domain/models/diary/diary_entry.dart';
 import 'package:note_english_flutter/domain/models/diary/diary_metadata.dart';
 import 'package:note_english_flutter/domain/models/diary/weather_condition.dart';

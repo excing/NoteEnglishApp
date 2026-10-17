@@ -30,7 +30,7 @@ class LocalDiaryRepository implements IDiaryRepository {
 
     if (_storageEngine != null) {
       try {
-        final raw = await _storageEngine!.readString(_storageKey);
+        final raw = await _storageEngine.readString(_storageKey);
         if (raw != null && raw.trim().isNotEmpty) {
           final decoded = json.decode(raw);
           if (decoded is List) {
@@ -53,7 +53,7 @@ class LocalDiaryRepository implements IDiaryRepository {
     if (_storageEngine == null) return;
     try {
       final list = _entries.values.map((e) => e.toJson()).toList();
-      await _storageEngine!.writeString(_storageKey, json.encode(list));
+      await _storageEngine.writeString(_storageKey, json.encode(list));
     } catch (_) {}
   }
 

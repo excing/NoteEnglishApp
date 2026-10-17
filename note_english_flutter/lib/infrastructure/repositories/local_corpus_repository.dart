@@ -31,7 +31,7 @@ class LocalCorpusRepository implements ICorpusRepository {
 
     if (_storageEngine != null) {
       try {
-        final raw = await _storageEngine!.readString(_storageKey);
+        final raw = await _storageEngine.readString(_storageKey);
         if (raw != null && raw.trim().isNotEmpty) {
           final decoded = json.decode(raw);
           if (decoded is List) {
@@ -53,7 +53,7 @@ class LocalCorpusRepository implements ICorpusRepository {
     if (_storageEngine == null) return;
     try {
       final list = _items.values.map((e) => e.toJson()).toList();
-      await _storageEngine!.writeString(_storageKey, json.encode(list));
+      await _storageEngine.writeString(_storageKey, json.encode(list));
     } catch (_) {}
   }
 
@@ -116,7 +116,6 @@ class LocalCorpusRepository implements ICorpusRepository {
         .toSet();
   }
 
-  @override
   Future<void> delete(String id) async {
     await _ensureInitialized();
     _items.remove(id);
