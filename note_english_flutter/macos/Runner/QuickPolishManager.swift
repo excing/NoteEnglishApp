@@ -129,7 +129,7 @@ class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
     openItem.target = self
     menu.addItem(openItem)
 
-    let quickPolishItem = NSMenuItem(title: "润色选中内容 (fn + 空格 / ⌥ + 空格)", action: #selector(triggerQuickPolish), keyEquivalent: "")
+    let quickPolishItem = NSMenuItem(title: "润色选中内容 (fn + 空格 / ⌥ + 空格)", action: #selector(triggerQuickPolishFromMenu), keyEquivalent: "")
     quickPolishItem.target = self
     menu.addItem(quickPolishItem)
 
@@ -295,6 +295,14 @@ class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
   }
 
   // MARK: - Text Extraction and In-Place Replacement
+  @objc func triggerQuickPolishFromMenu() {
+    // 隐藏状态栏菜单，让系统将输入焦点归还给原编辑应用
+    NSApp.hide(nil)
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self] in
+      self?.triggerQuickPolish()
+    }
+  }
+
   @objc func triggerQuickPolish() {
     guard isEnabled else {
       postNotification(title: "OtterJot 提示", body: "全局快捷润色尚未开启，请在 OtterJot 设置中开启。")
@@ -304,38 +312,40 @@ class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
 
     guard isAccessibilityGranted() else {
       postNotification(
-        title: "OtterJot 权限提示",
-        body: "请先在「系统设置 - 隐私与安全性 - 辅助功能」中允许 OtterJot，以便自动读取并替换选中文本。"
+        title: "OtterJot 权限未就绪",
+        body: "请在系统设置中将 OtterJot 右侧开关切换为【开启】，以便抓取文本。"
       )
       NSSound.beep()
-      requestAccessibilityPermission()
+      // 温和打开系统偏好设置面板，绝不在每次按键时重复触发系统 Prompt 弹窗
+      openAccessibilityPreferencePane()
       return
     }
 
-    // 延时 0.12 秒，确保若从状态栏菜单点击时，系统菜单已收起并将输入焦点还给原编辑窗口
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
+    // 延时 0.18 秒，等待用户物理手指从 Fn / Option 组合键上松开，避免按键事件掩码冲突
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self] in
       guard let self = self else { return }
       self.extractAndPolish()
     }
   }
 
   private func extractAndPolish() {
-    // 方案 1: 优先通过 macOS Accessibility 原生读取当前活动元素的高亮选中文本
-    var capturedText = getSelectedTextViaAccessibility()
-
-    // 方案 2: 若 Accessibility 属性未获取到（如非原生应用），降级采用 Cmd + C 剪贴板提取
     let pasteboard = NSPasteboard.general
     let previousString = pasteboard.string(forType: .string)
+    let previousChangeCount = pasteboard.changeCount
 
-    if capturedText == nil || capturedText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true {
-      let oldChangeCount = pasteboard.changeCount
-      simulateKey(keyCode: 8, flags: .maskCommand) // ANSI 'C'
+    // 1. 模拟 Cmd + C 抓取选中文本 (采用独立 hidSystemState 源，防止物理修饰键叠加)
+    simulateCopy()
 
-      // 等待剪贴板就绪
-      usleep(100_000) // 100ms
-      if pasteboard.changeCount != oldChangeCount || pasteboard.string(forType: .string) != previousString {
-        capturedText = pasteboard.string(forType: .string)
-      } else {
+    // 稍作等待以确保目标应用处理写入剪贴板
+    usleep(120_000) // 120ms
+
+    var capturedText: String?
+    if pasteboard.changeCount != previousChangeCount {
+      capturedText = pasteboard.string(forType: .string)
+    } else {
+      // 若剪贴板变更未检测到，尝试 Accessibility 原生读取
+      capturedText = getSelectedTextViaAccessibility()
+      if capturedText == nil || capturedText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true {
         capturedText = pasteboard.string(forType: .string)
       }
     }
@@ -373,10 +383,10 @@ class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
       pasteboard.setString(polishedText, forType: .string)
 
       // 5. 模拟 Cmd + V 在原位置无缝就地替换
-      self.simulateKey(keyCode: 9, flags: .maskCommand) // ANSI 'V'
+      self.simulatePaste()
 
-      // 6. 延时将剪贴板内容还原（可选恢复），避免污染用户历史剪贴板
-      DispatchQueue.global().asyncAfter(deadline: .now() + 0.4) {
+      // 6. 延时将剪贴板内容还原，避免污染用户历史剪贴板
+      DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) {
         if let prev = previousString {
           pasteboard.clearContents()
           pasteboard.setString(prev, forType: .string)
@@ -407,12 +417,23 @@ class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
     return nil
   }
 
-  private func simulateKey(keyCode: CGKeyCode, flags: CGEventFlags) {
-    let source = CGEventSource(stateID: .combinedSessionState)
-    let keyDown = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true)
-    keyDown?.flags = flags
-    let keyUp = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
-    keyUp?.flags = flags
+  private func simulateCopy() {
+    let source = CGEventSource(stateID: .hidSystemState)
+    let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 8, keyDown: true)
+    keyDown?.flags = .maskCommand
+    let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 8, keyDown: false)
+    keyUp?.flags = []
+
+    keyDown?.post(tap: .cghidEventTap)
+    keyUp?.post(tap: .cghidEventTap)
+  }
+
+  private func simulatePaste() {
+    let source = CGEventSource(stateID: .hidSystemState)
+    let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true)
+    keyDown?.flags = .maskCommand
+    let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false)
+    keyUp?.flags = []
 
     keyDown?.post(tap: .cghidEventTap)
     keyUp?.post(tap: .cghidEventTap)
@@ -420,16 +441,23 @@ class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
 
   // MARK: - Accessibility Permissions
   func isAccessibilityGranted() -> Bool {
-    return AXIsProcessTrusted()
+    let trusted = AXIsProcessTrusted()
+    if trusted && eventTap == nil && isEnabled {
+      setupEventTap()
+    }
+    return trusted
+  }
+
+  func openAccessibilityPreferencePane() {
+    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+      NSWorkspace.shared.open(url)
+    }
   }
 
   func requestAccessibilityPermission() {
     let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
     AXIsProcessTrustedWithOptions(options)
-
-    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-      NSWorkspace.shared.open(url)
-    }
+    openAccessibilityPreferencePane()
   }
 
   // MARK: - Modern User Notifications
