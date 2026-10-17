@@ -9,6 +9,7 @@
 工作流文件位于根目录下：
 1. **全平台打包与发布工作流**：[`.github/workflows/build-and-release.yml`](../.github/workflows/build-and-release.yml)
 2. **日常代码质量校验工作流**：[`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
+3. **Web 端 GitHub Pages 自动部署工作流**：[`.github/workflows/deploy-pages.yml`](../.github/workflows/deploy-pages.yml)
 
 ### 各平台产物清单
 
@@ -115,3 +116,16 @@ storeFile=upload-keystore.jks
   3. 使用企业证书签名服务直接对未签名 IPA 进行重签名分发。
 - **配置商用 Apple 开发者账号（可选进阶）**：
   若需生成正式 Distribution 签名包并自动上传至 TestFlight / App Store，可结合 Fastlane 或通过 Apple Developer API Key / P12 证书及 MobileProvision 文件进行自动签名注入。
+
+---
+
+## 四、Web 端自动部署到 GitHub Pages
+
+项目已配置专门的自动部署工作流 [`.github/workflows/deploy-pages.yml`](../.github/workflows/deploy-pages.yml)：
+- **触发时机**：每当向 `main` 分支推送 Flutter 代码更新，或者在 Actions 页面手动点击触发时，自动编译生产 Web 静态站点并部署；
+- **访问地址**：`https://excing.github.io/NoteEnglishApp/`（已配置 `--base-href "/NoteEnglishApp/"` 适配项目路径）。
+
+### 首次使用设置（仅需 1 步）：
+1. 打开 GitHub 仓库页面，点击 **Settings** -> 左侧菜单选择 **Pages**；
+2. 在 **Build and deployment** 下方的 **Source** 下拉菜单中，将默认的 `Deploy from a branch` 改选为 **`GitHub Actions`** 即可！
+3. 之后无需维护任何分支，GitHub Actions 将全自动部署并维护在线 Web 站点。
