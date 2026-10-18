@@ -97,6 +97,55 @@ void main() {
       );
     });
 
+    test('should allow empty apiKey for keyless services like OVH AI and not send Authorization header', () async {
+      const ovhConfig = AiProfileConfig(
+        serviceId: 'ovh_ai',
+        baseUrl: 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1',
+        apiKey: '',
+        selectedModel: 'meta-llama/Meta-Llama-3.1-70B-Instruct',
+      );
+
+      final sampleJson = '''
+{
+  "${AiContracts.keyNonEnglish}": [],
+  "${AiContracts.keyIncorrectExpressions}": [],
+  "${AiContracts.keyOriginalStyleVersion}": "I worked late today.",
+  "${AiContracts.keyUnnaturalExpressions}": [],
+  "${AiContracts.keyAuthenticAdvancedVersion}": "Clocked out late today.",
+  "${AiContracts.keyExtractedCorpus}": []
+}
+''';
+
+      Options? capturedOptions;
+      when(() => mockDio.post(
+            'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions',
+            data: any(named: 'data'),
+            options: any(named: 'options'),
+          )).thenAnswer((invocation) async {
+        capturedOptions = invocation.namedArguments[#options] as Options?;
+        return Response(
+          requestOptions: RequestOptions(path: '/chat/completions'),
+          statusCode: 200,
+          data: {
+            'choices': [
+              {
+                'message': {'content': sampleJson}
+              }
+            ]
+          },
+        );
+      });
+
+      final result = await gateway.analyzeDiary(
+        promptBundle: promptBundle,
+        config: ovhConfig,
+      );
+
+      expect(result.originalStyleEnglishVersion, 'I worked late today.');
+      expect(capturedOptions, isNotNull);
+      expect(capturedOptions!.headers?['Authorization'], isNull);
+    });
+
     test('should throw AiAuthenticationFailure when HTTP status is 401', () async {
       when(() => mockDio.post(
             any(),

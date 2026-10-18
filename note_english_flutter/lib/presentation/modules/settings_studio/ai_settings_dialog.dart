@@ -6,6 +6,7 @@ import 'package:note_english_flutter/application/quick_polish/quick_polish_state
 import 'package:note_english_flutter/application/settings/ai_settings_cubit.dart';
 import 'package:note_english_flutter/core/theme/app_theme_tokens.dart';
 import 'package:note_english_flutter/domain/models/config/ai_profile_config.dart';
+import 'package:note_english_flutter/domain/models/config/built_in_ai_service.dart';
 import 'package:note_english_flutter/presentation/common_widgets/otter_jot_avatar.dart';
 
 /// AI 接口配置对话框 (全平台自适应)
@@ -17,16 +18,20 @@ class AiSettingsDialog extends StatefulWidget {
 }
 
 class _AiSettingsDialogState extends State<AiSettingsDialog> {
+  late String _selectedServiceId;
   late TextEditingController _baseUrlCtrl;
   late TextEditingController _apiKeyCtrl;
   late TextEditingController _promptCtrl;
   late TextEditingController _modelCtrl;
-  String _selectedModel = 'gpt-4o';
+  String _selectedModel = 'Qwen3.8-27B';
 
   @override
   void initState() {
     super.initState();
     final cfg = context.read<AiSettingsCubit>().state.config;
+    _selectedServiceId = cfg.serviceId.isNotEmpty
+        ? cfg.serviceId
+        : BuiltInAiService.findByBaseUrl(cfg.baseUrl).id;
     _baseUrlCtrl = TextEditingController(text: cfg.baseUrl);
     _apiKeyCtrl = TextEditingController(text: cfg.apiKey);
     _promptCtrl = TextEditingController(text: cfg.customSystemPrompt);
@@ -35,6 +40,14 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
   }
 
   void _syncWithConfig(AiProfileConfig cfg) {
+    final effectiveServiceId = cfg.serviceId.isNotEmpty
+        ? cfg.serviceId
+        : BuiltInAiService.findByBaseUrl(cfg.baseUrl).id;
+    if (_selectedServiceId != effectiveServiceId) {
+      setState(() {
+        _selectedServiceId = effectiveServiceId;
+      });
+    }
     if (_baseUrlCtrl.text != cfg.baseUrl) {
       _baseUrlCtrl.text = cfg.baseUrl;
     }
@@ -131,17 +144,95 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
                     style: TextStyle(fontSize: 13, color: tokens.textMuted),
                   ),
                   const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    key: const ValueKey('built_in_service_dropdown'),
+                    initialValue: _selectedServiceId,
+                    decoration: InputDecoration(
+                      labelText: '内置可选 AI 服务 / 预设服务商',
+                      labelStyle: TextStyle(color: tokens.textMuted),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: tokens.cardBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: tokens.cardBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: tokens.terracotta, width: 1.5),
+                      ),
+                    ),
+                    items: BuiltInAiService.allServices.map((service) {
+                      return DropdownMenuItem<String>(
+                        value: service.id,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(service.name, style: TextStyle(fontSize: 14, color: tokens.textPrimary)),
+                            if (!service.requiresApiKey) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: tokens.sage.withValues(alpha: 0.16),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: tokens.sage.withValues(alpha: 0.4)),
+                                ),
+                                child: Text(
+                                  '免Key',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: tokens.sage,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (newServiceId) {
+                      if (newServiceId == null) return;
+                      final s = BuiltInAiService.findById(newServiceId);
+                      setState(() {
+                        _selectedServiceId = newServiceId;
+                        if (s != BuiltInAiService.custom && s.baseUrl.isNotEmpty) {
+                          _baseUrlCtrl.text = s.baseUrl;
+                        }
+                        if (s.defaultModel.isNotEmpty) {
+                          _selectedModel = s.defaultModel;
+                          _modelCtrl.text = s.defaultModel;
+                        }
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
                   _buildTextField(
                     label: 'Base URL',
                     controller: _baseUrlCtrl,
                     hint: '例如: https://api.openai.com/v1',
                     tokens: tokens,
+                    onChanged: (val) {
+                      final matched = BuiltInAiService.findByBaseUrl(val);
+                      if (_selectedServiceId != matched.id) {
+                        setState(() {
+                          _selectedServiceId = matched.id;
+                        });
+                      }
+                    },
                   ),
                   const SizedBox(height: 12),
                   _buildTextField(
-                    label: 'API Key',
+                    fieldKey: const ValueKey('setting_field_API Key'),
+                    label: !BuiltInAiService.findById(_selectedServiceId).requiresApiKey
+                        ? 'API Key (免密可选)'
+                        : 'API Key',
                     controller: _apiKeyCtrl,
-                    hint: 'sk-...',
+                    hint: !BuiltInAiService.findById(_selectedServiceId).requiresApiKey
+                        ? '免 API Key，可直接留空使用'
+                        : 'sk-...',
                     obscureText: true,
                     tokens: tokens,
                   ),
@@ -181,7 +272,9 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
                             : _buildTextField(
                                 label: '模型名称',
                                 controller: _modelCtrl,
-                                hint: '例如: gpt-4o',
+                                hint: BuiltInAiService.findById(_selectedServiceId).defaultModel.isNotEmpty
+                                    ? BuiltInAiService.findById(_selectedServiceId).defaultModel
+                                    : '例如: gpt-4o',
                                 tokens: tokens,
                                 onChanged: (v) => _selectedModel = v,
                               ),
@@ -193,6 +286,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
                             : () {
                                 // 暂存当前输入的 url 和 key 并拉取模型
                                 final tempConfig = state.config.copyWith(
+                                  serviceId: _selectedServiceId,
                                   baseUrl: _baseUrlCtrl.text.trim(),
                                   apiKey: _apiKeyCtrl.text.trim(),
                                 );
@@ -258,6 +352,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
                               ? _modelCtrl.text.trim()
                               : _selectedModel.trim();
                           final updated = state.config.copyWith(
+                            serviceId: _selectedServiceId,
                             baseUrl: _baseUrlCtrl.text.trim(),
                             apiKey: _apiKeyCtrl.text.trim(),
                             selectedModel: modelToSave,
@@ -558,6 +653,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
   }
 
   Widget _buildTextField({
+    Key? fieldKey,
     required String label,
     required TextEditingController controller,
     required String hint,
@@ -567,7 +663,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
     ValueChanged<String>? onChanged,
   }) {
     return TextFormField(
-      key: ValueKey('setting_field_$label'),
+      key: fieldKey ?? ValueKey('setting_field_$label'),
       controller: controller,
       obscureText: obscureText,
       maxLines: maxLines,

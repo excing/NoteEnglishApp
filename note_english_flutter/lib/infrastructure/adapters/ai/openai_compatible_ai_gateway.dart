@@ -96,11 +96,13 @@ class OpenAiCompatibleAiGateway implements IAiGateway {
     _validateConfig(config);
 
     final baseUrl = _normalizeBaseUrl(config.baseUrl);
-    final headers = {
-      'Authorization': 'Bearer ${config.apiKey.trim()}',
+    final headers = <String, dynamic>{
       'Content-Type': 'application/json',
       ...config.customHeaders,
     };
+    if (config.apiKey.trim().isNotEmpty) {
+      headers['Authorization'] = 'Bearer ${config.apiKey.trim()}';
+    }
 
     try {
       final response = await _dio.get(
@@ -147,11 +149,13 @@ class OpenAiCompatibleAiGateway implements IAiGateway {
     required AiProfileConfig config,
   }) async {
     final baseUrl = _normalizeBaseUrl(config.baseUrl);
-    final headers = {
-      'Authorization': 'Bearer ${config.apiKey.trim()}',
+    final headers = <String, dynamic>{
       'Content-Type': 'application/json',
       ...config.customHeaders,
     };
+    if (config.apiKey.trim().isNotEmpty) {
+      headers['Authorization'] = 'Bearer ${config.apiKey.trim()}';
+    }
 
     final payload = {
       'model': config.selectedModel.trim(),

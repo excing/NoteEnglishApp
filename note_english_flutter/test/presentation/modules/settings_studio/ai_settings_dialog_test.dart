@@ -186,5 +186,103 @@ void main() {
 
       verify(() => mockQuickPolishCubit.toggleEnabled(false)).called(1);
     });
+
+    testWidgets('switching built-in service to OVH AI auto-fills endpoint and saves without requiring apiKey', (tester) async {
+      tester.view.physicalSize = const Size(1024, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        buildTestWidget(
+          quickPolishState: const QuickPolishState(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final serviceDropdown = find.byKey(const ValueKey('built_in_service_dropdown'));
+      expect(serviceDropdown, findsOneWidget);
+
+      await tester.tap(serviceDropdown);
+      await tester.pumpAndSettle();
+
+      final ovhOption = find.text('OVHcloud AI (免 API Key)').last;
+      expect(ovhOption, findsOneWidget);
+      await tester.tap(ovhOption);
+      await tester.pumpAndSettle();
+
+      final baseUrlField = tester.widget<TextFormField>(
+        find.byKey(const ValueKey('setting_field_Base URL')),
+      );
+      expect(baseUrlField.controller?.text, 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1');
+
+      // Clear API Key to ensure keyless save works
+      final apiKeyField = find.byKey(const ValueKey('setting_field_API Key'));
+      await tester.enterText(apiKeyField, '');
+      await tester.pumpAndSettle();
+
+      final saveBtn = find.byKey(const ValueKey('save_settings_button'));
+      await tester.ensureVisible(saveBtn);
+      await tester.tap(saveBtn);
+      await tester.pumpAndSettle();
+
+      verify(() => mockAiConfigRepo.saveConfig(any(that: isA<AiProfileConfig>()
+          .having((c) => c.serviceId, 'serviceId', 'ovh_ai')
+          .having((c) => c.baseUrl, 'baseUrl', 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1')
+          .having((c) => c.apiKey, 'apiKey', '')))).called(1);
+    });
+
+    testWidgets('dialog defaults to OVH AI and Qwen3.8-27B when using default configuration', (tester) async {
+      tester.view.physicalSize = const Size(1024, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      when(() => mockAiConfigRepo.getConfig()).thenAnswer(
+        (_) async => const AiProfileConfig(),
+      );
+
+      final defaultCubit = AiSettingsCubit(
+        configRepository: mockAiConfigRepo,
+        aiGateway: mockAiGateway,
+        initialConfig: const AiProfileConfig(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.light().copyWith(
+            extensions: [AppThemeTokens.light],
+          ),
+          home: MultiBlocProvider(
+            providers: [
+              BlocProvider<AiSettingsCubit>.value(value: defaultCubit),
+              BlocProvider<QuickPolishCubit>.value(value: mockQuickPolishCubit),
+            ],
+            child: const Scaffold(
+              body: AiSettingsDialog(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final baseUrlField = tester.widget<TextFormField>(
+        find.byKey(const ValueKey('setting_field_Base URL')),
+      );
+      expect(baseUrlField.controller?.text, 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1');
+
+      final modelField = tester.widget<TextFormField>(
+        find.byKey(const ValueKey('setting_field_模型名称')),
+      );
+      expect(modelField.controller?.text, 'Qwen3.8-27B');
+
+      expect(find.text('API Key (免密可选)'), findsOneWidget);
+
+      defaultCubit.close();
+    });
   });
 }

@@ -4,6 +4,7 @@ import 'package:note_english_flutter/domain/errors/ai_failure.dart';
 import 'package:note_english_flutter/domain/gateways/ai_gateway.dart';
 import 'package:note_english_flutter/domain/models/config/ai_model_descriptor.dart';
 import 'package:note_english_flutter/domain/models/config/ai_profile_config.dart';
+import 'package:note_english_flutter/domain/models/config/built_in_ai_service.dart';
 import 'package:note_english_flutter/domain/repositories/ai_config_repository.dart';
 
 /// AI 设置状态
@@ -92,10 +93,27 @@ class AiSettingsCubit extends Cubit<AiSettingsState> {
     }
   }
 
+  /// 切换内置预设服务并更新默认配置
+  void selectBuiltInService(BuiltInAiService service) {
+    final current = state.config;
+    final updated = current.copyWith(
+      serviceId: service.id,
+      baseUrl: service.baseUrl,
+      selectedModel: service.defaultModel.isNotEmpty
+          ? service.defaultModel
+          : current.selectedModel,
+    );
+    emit(state.copyWith(config: updated, errorMessage: null));
+  }
+
   /// 动态向第三方平台拉取模型列表
   Future<void> fetchPlatformModels() async {
     final cfg = state.config;
-    if (cfg.apiKey.trim().isEmpty || cfg.baseUrl.trim().isEmpty) {
+    if (cfg.baseUrl.trim().isEmpty) {
+      emit(state.copyWith(errorMessage: '请先填写 Base URL 再获取模型'));
+      return;
+    }
+    if (cfg.isApiKeyRequired && cfg.apiKey.trim().isEmpty) {
       emit(state.copyWith(errorMessage: '请先填写 Base URL 和 API Key 再获取模型'));
       return;
     }

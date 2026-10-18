@@ -1,34 +1,35 @@
-## OtterJot (NoteEnglish) v0.0.3 发布说明
+## OtterJot (NoteEnglish) v0.0.4 发布说明
 
-欢迎使用 **OtterJot v0.0.3**！本次版本带来了备受期待的 **全局划词润色（Global Quick Polish）** 重磅特性，并在全平台工程化、安装包命名规范与分发体验上进行了全面升级。
-
----
-
-### 🚀 新增功能 (New Features)
-
-#### 1. 全局划词润色与快捷键替换 (Global Quick Polish)
-- **macOS 全局系统级快捷键**：默认支持 `fn + Space` 或 `⌥ + Space`（Option + Space）。
-- **跨应用原地替换**：在 macOS 任意第三方应用程序（微信、Slack、邮件客户端、浏览器、代码编辑器等）中选中一段中英文文本，按下全局快捷键，即可立即调用 AI 大模型进行地道英语表达重塑，并直接就地替换选中内容。
-- **语料资产静默沉淀**：划词润色过程中生成的优质短语与地道句式会自动分析并静默沉淀入库，在随笔主界面右侧专属语料库中可随时回顾与溯源。
-- **辅助功能权限（Accessibility）智能引导**：设置弹窗内提供系统辅助功能权限状态实时检测、一键跳转 macOS「系统设置 -> 隐私与安全性 -> 辅助功能」、以及在访达中定位应用以方便拖入授权。
-- **独立控制开关**：在 AI 设置弹窗中可随时开启或关闭划词润色常驻托盘与全局快捷键监听。
+欢迎使用 **OtterJot v0.0.4**！本次版本带来了重大体验升级 —— **开箱即用的免密 AI 服务预设支持**，同时重构了 AI 服务提供商体系，让新用户无需配置繁琐的 API Key 即可即刻开始地道英语写作与全局划词润色。
 
 ---
 
-### 💎 改进与优化 (Improvements)
+### 🚀 新增功能与核心亮点 (New Features & Highlights)
 
-1. **macOS DMG 原生拖拽安装体验**：
-   - DMG 挂载磁盘镜像中内置了指向系统 `/Applications` 文件夹的快捷方式软链接，双击打开后可直接拖拽 `OtterJot` 图标至右侧文件夹完成安装。
-2. **各平台安装包统一命名规范**：
-   - 所有平台安装包产物统一升级为 **产品名 + 项目名共存格式（`OtterJot-NoteEnglish-*`）**，便于识别与存档。
-3. **全平台高清应用图标全面上线**：
-   - 为 Android、iOS、macOS、Windows、Linux 和 Web 端生成并适配了全套高分辨率水獭主编图标。
-4. **Web 端自动部署到 GitHub Pages**：
-   - 每次发布新版本时，Web 端静态站点将自动部署更新至 GitHub Pages，支持在线免安装直接体验：[https://excing.github.io/NoteEnglishApp/](https://excing.github.io/NoteEnglishApp/)。
-5. **划词润色随笔落库闭环与原生稳定性修复 (Bug Fixes & Enhancements)**：
-   - **随笔笔记自动落库闭环**：全局划词润色在重塑地道表达的同时，会自动将该段内容作为随笔落库保存，并沉淀主编 5 大板块结构化分析及高价值语料，用户打开主界面即可随时回顾；
-   - **多级 Accessibility 文本抓取增强**：新增原生辅助功能深层焦点元素穿透算法，显著提升第三方 App（浏览器、Slack、邮件、代码编辑器等）选中文本的识别率；
-   - **现代化通知与时序优化**：采用 `UNUserNotificationCenter` 现代通知体系，优化剪贴板替换时序与防污染隔离保护机制。
+#### 1. 开箱即用：内置 OVHcloud AI 免密大模型服务 (Keyless Out-of-the-Box AI)
+- **免 API Key 极速体验**：默认预设接入 **OVHcloud AI 官方开放端点** 并预设 **`Qwen3.8-27B`** 大模型。
+- **零门槛上手**：新下载安装的用户无需注册任何账号或绑定信用卡，打开软件即可直接体验水獭主编的 5 大结构化分析、地道重塑以及 macOS 全局划词润色功能。
+
+#### 2. 内置 AI 服务商单一信源与智能切换 (Built-in AI Service Providers)
+- **多服务商预设**：AI 设置面板新增「内置可选 AI 服务 / 预设服务商」下拉选择器，涵盖：
+  - **OVHcloud AI (免 API Key)**：自带绿色「免Key」徽章，默认选用 `Qwen3.8-27B`，并预置 LLaMA 3.1 70B、Mistral 7B 等开源模型；
+  - **OpenAI 官方**：预设 `https://api.openai.com/v1` 与 `gpt-4o`、`gpt-4o-mini` 等模型；
+  - **DeepSeek 官方**：预设 `https://api.deepseek.com/v1` 与 `deepseek-chat`、`deepseek-reasoner`；
+  - **自定义 (OpenAI 兼容协议)**：支持任意中转或自建网关。
+- **智能联动填充**：切换预设服务商时自动联动 Base URL、推荐默认模型，并自适应调整 API Key 的必填提示（免密服务提示「API Key (免密可选)」，可直接留空）。
+
+---
+
+### 💎 改进与优化 (Improvements & Fixes)
+
+1. **防腐层协议适配（免密请求头过滤）**：
+   - 适配免密开放端点与私有内网端点，当 API Key 留空时不发送 `Authorization: Bearer` 请求头，彻底解决无效/空 Token 引发的 HTTP 401/400 校验异常。
+2. **AI 配置聚合根状态判定优化**：
+   - 根据选中的服务商类型动态判定 `isApiKeyRequired` 与 `isConfigured`，免密服务无需输入密钥即判定为已就绪。
+3. **macOS 全局快捷润色稳定性维护**：
+   - 优化 `QuickPolishManager` 析构流程，规范系统状态栏常驻项的释放逻辑。
+4. **测试套件与代码规范 100% 达成**：
+   - 全面覆盖服务商单一信源解析测试、免密网关请求头断言测试与 UI 切换交互测试，全量 150 项自动化测试全绿，代码静态分析 0 警告 0 错误。
 
 ---
 
@@ -47,4 +48,5 @@
 | **Web 站点包** | `OtterJot-NoteEnglish-Web.zip` | 静态网页包，解压后可部署在 Nginx、Vercel 等服务器 |
 
 > [!TIP]
-> **macOS 首次打开安全提示**：如遇 Gatekeeper 拦截提示“无法验证开发者”，在终端运行 `xattr -cr /Applications/OtterJot.app` 或在「系统设置 -> 隐私与安全性」中点击「仍要打开」即可。
+> - **在线体验**：Web 端持续自动部署至 GitHub Pages：[https://excing.github.io/NoteEnglishApp/](https://excing.github.io/NoteEnglishApp/)
+> - **macOS 首次打开安全提示**：如遇 Gatekeeper 拦截提示“无法验证开发者”，在终端运行 `xattr -cr /Applications/OtterJot.app` 或在「系统设置 -> 隐私与安全性」中点击「仍要打开」即可。

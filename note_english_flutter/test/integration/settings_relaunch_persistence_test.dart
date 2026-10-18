@@ -89,7 +89,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // 点击保存
-    await tester.tap(find.byKey(const ValueKey('save_settings_button')));
+    final saveBtn = find.byKey(const ValueKey('save_settings_button'));
+    await tester.ensureVisible(saveBtn);
+    await tester.tap(saveBtn);
     await tester.pumpAndSettle();
 
     // 验证仓储已完成物理持久化
@@ -142,7 +144,9 @@ void main() {
         reason: '首次打开设置时，模型名称必须立即显示保存的值');
 
     // 关闭并第二次打开，验证稳定性
-    await tester.tap(find.text('取消'));
+    final cancelBtn = find.text('取消');
+    await tester.ensureVisible(cancelBtn);
+    await tester.tap(cancelBtn);
     await tester.pumpAndSettle();
 
     if (find.byKey(const ValueKey('ai_settings_button')).evaluate().isEmpty) {

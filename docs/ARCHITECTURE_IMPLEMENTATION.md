@@ -15,6 +15,7 @@
     4. 不地道的英文表达及解释与思维桥梁（`UnnaturalExpressionItem`）
     5. 地道英文表达进阶版本（`authenticAdvancedVersion`）
     6. 追问结构化响应（`InquiryStructuredResponse`，含自然语言回复、重点、示例）
+  - **配置聚合根与内置预设服务 (`domain/models/config/`)**：`AiProfileConfig`、`AiProviderType`、`BuiltInAiService`（单一信源预设服务商，默认首选 OVHcloud AI 免 Key 开放端点配合 `Qwen3.8-27B` 开箱即用，并支持 OpenAI 官方、DeepSeek 与自定义兼容端点）。
   - **语料资产聚合 (`domain/models/corpus/`)**：`CorpusItem`、`CorpusSource`（情境原句与随笔溯源）、`MasteryStatus`。
   - **领域服务 (`domain/services/`)**：
     - `PromptTemplateEngine`：双层提示词引擎（用户自定义风格与底层不可篡改 JSON Schema 分离装配）。
@@ -22,7 +23,7 @@
   - **仓储与网关抽象**：`IDiaryRepository`、`ICorpusRepository`、`IAiConfigRepository`、`IAiGateway`。
 
 - **Infrastructure Layer (基础设施与防腐层 ACL)**：
-  - `OpenAiCompatibleAiGateway`：支持自定义任意第三方 OpenAI 兼容端点、API Key 与自定义 Headers。
+  - `OpenAiCompatibleAiGateway`：支持自定义任意第三方 OpenAI 兼容端点、API Key 与自定义 Headers，并原生适配免 API Key 开放端点（API Key 留空时不发送 Bearer 请求头，确保免密调用合规）。
   - `RobustJsonParser`：健壮的 JSON 清洗解析器，自动清洗 Markdown 围栏与多余闲聊字符。
   - `fetchAvailableModels`：支持向 `/models` 自动拉取第三方平台的可用模型列表。
   - `LocalDiaryRepository`、`LocalCorpusRepository`、`SecureAiConfigRepository`：全平台本地响应式仓储与安全存储。
@@ -31,14 +32,14 @@
   - `DiaryEditorialCubit`：日记草稿编辑、字数天气同步、呼叫主编结构化梳理、语料自动静默存库。
   - `InquiryCubit`：携带上下文追问、自然语言+重点+示例结构化解析、延伸语料自动入库。
   - `CorpusDeckCubit`：场景化语料卡片展示与掌握程度切换。
-  - `AiSettingsCubit`：API 配置与模型动态获取。
+  - `AiSettingsCubit`：API 配置、内置预设服务切换与模型动态获取。
 
 - **Presentation Layer (全平台极简极致体验 UI)**：
   - `WritingStudioPage`：沉浸式手账质感稿纸、无红色波浪线打扰、桌面端双栏与移动端自适应。
   - `EditorialInspectorView`：5 大结构化板块优雅渲染，非英文字词自适应隐藏。
   - `InquiryBottomSheet`：追问交互流。
   - `CorpusDeckPage`：专属生活语料库。
-  - `AiSettingsDialog`：接口配置与模型获取。
+  - `AiSettingsDialog`：内置可选服务商切换、接口配置、模型获取与状态栏快捷润色设置。
   - `AppThemeTokens`：温润米白浅色与深烘焙深色双主题单一信源。
 
 ---

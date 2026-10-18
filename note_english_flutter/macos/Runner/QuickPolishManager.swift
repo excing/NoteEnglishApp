@@ -500,12 +500,8 @@ class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
   }
 
   deinit {
-    teardownEventTap()
-    if let gm = globalMonitor {
-      NSEvent.removeMonitor(gm)
-    }
-    if let lm = localMonitor {
-      NSEvent.removeMonitor(lm)
+    if let item = statusItem {
+      NSStatusBar.system.removeStatusItem(item)
     }
   }
 }
