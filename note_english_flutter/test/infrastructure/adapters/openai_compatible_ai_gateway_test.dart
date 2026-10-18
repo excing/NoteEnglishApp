@@ -180,5 +180,108 @@ void main() {
         throwsA(isA<AiNetworkFailure>()),
       );
     });
+
+    test('should include thinking enabled payload and extract reasoning_content when isDeepThinking is true', () async {
+      const thinkingConfig = AiProfileConfig(
+        baseUrl: 'https://api.deepseek.com/v1',
+        apiKey: 'test-key',
+        selectedModel: 'deepseek-v4.1-flash',
+        isDeepThinking: true,
+      );
+
+      Map<String, dynamic>? capturedPayload;
+
+      when(() => mockDio.post(
+            'https://api.deepseek.com/v1/chat/completions',
+            data: any(named: 'data'),
+            options: any(named: 'options'),
+          )).thenAnswer((invocation) async {
+        capturedPayload = invocation.namedArguments[const Symbol('data')] as Map<String, dynamic>?;
+        return Response(
+          requestOptions: RequestOptions(path: '/chat/completions'),
+          statusCode: 200,
+          data: {
+            'choices': [
+              {
+                'message': {
+                  'content': '''
+{
+  "${AiContracts.keyNonEnglish}": [],
+  "${AiContracts.keyIncorrectExpressions}": [],
+  "${AiContracts.keyOriginalStyleVersion}": "I worked late.",
+  "${AiContracts.keyUnnaturalExpressions}": [],
+  "${AiContracts.keyAuthenticAdvancedVersion}": "Clocked out late.",
+  "${AiContracts.keyExtractedCorpus}": []
+}
+''',
+                  'reasoning_content': 'Thinking step by step: The user was tired after overtime.',
+                }
+              }
+            ]
+          },
+        );
+      });
+
+      final result = await gateway.analyzeDiary(
+        promptBundle: promptBundle,
+        config: thinkingConfig,
+      );
+
+      expect(capturedPayload?['thinking'], {'type': 'enabled'});
+      expect(capturedPayload?['reasoning_effort'], 'high');
+      expect(capturedPayload?['enable_thinking'], true);
+      expect(result.hasThinkingProcess, isTrue);
+      expect(result.thinkingProcess, 'Thinking step by step: The user was tired after overtime.');
+    });
+
+    test('should send thinking disabled payload when isDeepThinking is false', () async {
+      const normalConfig = AiProfileConfig(
+        baseUrl: 'https://api.deepseek.com/v1',
+        apiKey: 'test-key',
+        selectedModel: 'deepseek-v4.1-flash',
+        isDeepThinking: false,
+      );
+
+      Map<String, dynamic>? capturedPayload;
+
+      when(() => mockDio.post(
+            'https://api.deepseek.com/v1/chat/completions',
+            data: any(named: 'data'),
+            options: any(named: 'options'),
+          )).thenAnswer((invocation) async {
+        capturedPayload = invocation.namedArguments[const Symbol('data')] as Map<String, dynamic>?;
+        return Response(
+          requestOptions: RequestOptions(path: '/chat/completions'),
+          statusCode: 200,
+          data: {
+            'choices': [
+              {
+                'message': {
+                  'content': '''
+{
+  "${AiContracts.keyNonEnglish}": [],
+  "${AiContracts.keyIncorrectExpressions}": [],
+  "${AiContracts.keyOriginalStyleVersion}": "Fast response.",
+  "${AiContracts.keyUnnaturalExpressions}": [],
+  "${AiContracts.keyAuthenticAdvancedVersion}": "Fast response advanced.",
+  "${AiContracts.keyExtractedCorpus}": []
+}
+''',
+                }
+              }
+            ]
+          },
+        );
+      });
+
+      await gateway.analyzeDiary(
+        promptBundle: promptBundle,
+        config: normalConfig,
+      );
+
+      expect(capturedPayload?['thinking'], {'type': 'disabled'});
+      expect(capturedPayload?['reasoning_effort'], 'none');
+      expect(capturedPayload?['enable_thinking'], false);
+    });
   });
 }

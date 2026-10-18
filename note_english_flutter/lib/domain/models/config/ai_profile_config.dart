@@ -11,6 +11,7 @@ class AiProfileConfig extends Equatable {
   final String selectedModel;
   final String customSystemPrompt;
   final Map<String, String> customHeaders;
+  final bool isDeepThinking;
 
   const AiProfileConfig({
     this.serviceId = 'ovh_ai',
@@ -20,6 +21,7 @@ class AiProfileConfig extends Equatable {
     this.selectedModel = 'Qwen3.8-27B',
     this.customSystemPrompt = '',
     this.customHeaders = const {},
+    this.isDeepThinking = false,
   });
 
   /// 当前预设服务是否要求必须提供 API Key
@@ -48,6 +50,7 @@ class AiProfileConfig extends Equatable {
     String? selectedModel,
     String? customSystemPrompt,
     Map<String, String>? customHeaders,
+    bool? isDeepThinking,
   }) {
     return AiProfileConfig(
       serviceId: serviceId ?? this.serviceId,
@@ -57,6 +60,7 @@ class AiProfileConfig extends Equatable {
       selectedModel: selectedModel ?? this.selectedModel,
       customSystemPrompt: customSystemPrompt ?? this.customSystemPrompt,
       customHeaders: customHeaders ?? this.customHeaders,
+      isDeepThinking: isDeepThinking ?? this.isDeepThinking,
     );
   }
 
@@ -69,6 +73,7 @@ class AiProfileConfig extends Equatable {
       'selectedModel': selectedModel,
       'customSystemPrompt': customSystemPrompt,
       'customHeaders': customHeaders,
+      'isDeepThinking': isDeepThinking,
     };
   }
 
@@ -91,6 +96,7 @@ class AiProfileConfig extends Equatable {
             (k, v) => MapEntry(k, v.toString()),
           ) ??
           const {},
+      isDeepThinking: json['isDeepThinking'] as bool? ?? false,
     );
   }
 
@@ -103,5 +109,6 @@ class AiProfileConfig extends Equatable {
         selectedModel,
         customSystemPrompt,
         customHeaders,
+        isDeepThinking,
       ];
 }

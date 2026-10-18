@@ -25,6 +25,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
   late TextEditingController _promptCtrl;
   late TextEditingController _modelCtrl;
   String _selectedModel = 'Qwen3.8-27B';
+  late bool _isDeepThinking;
 
   @override
   void initState() {
@@ -38,6 +39,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
     _promptCtrl = TextEditingController(text: cfg.customSystemPrompt);
     _modelCtrl = TextEditingController(text: cfg.selectedModel);
     _selectedModel = cfg.selectedModel;
+    _isDeepThinking = cfg.isDeepThinking;
   }
 
   void _syncWithConfig(AiProfileConfig cfg) {
@@ -64,6 +66,11 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
     if (_selectedModel != cfg.selectedModel) {
       setState(() {
         _selectedModel = cfg.selectedModel;
+      });
+    }
+    if (_isDeepThinking != cfg.isDeepThinking) {
+      setState(() {
+        _isDeepThinking = cfg.isDeepThinking;
       });
     }
   }
@@ -335,6 +342,8 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
                       height: 1.4,
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  _buildDeepThinkingSection(context, tokens),
                   if (_isQuickPolishSupported(context)) ...[
                     const SizedBox(height: 20),
                     _buildQuickPolishSection(context, tokens),
@@ -360,6 +369,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
                             apiKey: _apiKeyCtrl.text.trim(),
                             selectedModel: modelToSave,
                             customSystemPrompt: _promptCtrl.text.trim(),
+                            isDeepThinking: _isDeepThinking,
                           );
                           context.read<AiSettingsCubit>().saveConfig(updated);
                           Navigator.of(context).pop();
@@ -381,6 +391,68 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildDeepThinkingSection(BuildContext context, AppThemeTokens tokens) {
+    return Container(
+      decoration: BoxDecoration(
+        color: tokens.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: tokens.cardBorder),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      _isDeepThinking ? Icons.psychology : Icons.psychology_outlined,
+                      size: 20,
+                      color: _isDeepThinking ? tokens.amber : tokens.textMuted,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '深度思考模式 (Deep Thinking)',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: tokens.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '启用后，主编梳理将开启深层次语言学推演与思维桥梁剖析（原生适配 DeepSeek 4.x/R1、Qwen、Claude 等思考启停控制）。',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: tokens.textMuted,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Switch.adaptive(
+            key: const ValueKey('deep_thinking_settings_switch'),
+            value: _isDeepThinking,
+            activeTrackColor: tokens.terracotta,
+            activeThumbColor: Colors.white,
+            onChanged: (val) {
+              setState(() {
+                _isDeepThinking = val;
+              });
+            },
+          ),
+        ],
+      ),
     );
   }
 

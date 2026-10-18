@@ -22,14 +22,18 @@ class OpenAiCompatibleAiGateway implements IAiGateway {
   }) async {
     _validateConfig(config);
 
-    final rawText = await _sendChatCompletion(
+    final completion = await _sendChatCompletion(
       promptBundle: promptBundle,
       config: config,
     );
 
     try {
-      final jsonMap = RobustJsonParser.cleanAndParse(rawText);
-      return DiaryAnalysisResult.fromJson(jsonMap);
+      final jsonMap = RobustJsonParser.cleanAndParse(completion.content);
+      final result = DiaryAnalysisResult.fromJson(jsonMap);
+      if (!result.hasThinkingProcess && completion.reasoningContent != null) {
+        return result.copyWith(thinkingProcess: completion.reasoningContent);
+      }
+      return result;
     } catch (e) {
       throw AiResponseParsingFailure(
         '主编梳理结果解析失败: ${e is FormatException ? e.message : e.toString()}',
@@ -44,13 +48,13 @@ class OpenAiCompatibleAiGateway implements IAiGateway {
   }) async {
     _validateConfig(config);
 
-    final rawText = await _sendChatCompletion(
+    final completion = await _sendChatCompletion(
       promptBundle: promptBundle,
       config: config,
     );
 
     try {
-      final jsonMap = RobustJsonParser.cleanAndParse(rawText);
+      final jsonMap = RobustJsonParser.cleanAndParse(completion.content);
       return InquiryStructuredResponse.fromJson(jsonMap);
     } catch (e) {
       throw AiResponseParsingFailure(
@@ -114,7 +118,7 @@ class OpenAiCompatibleAiGateway implements IAiGateway {
   }
 
   /// 底层通用 Chat Completion 调度
-  Future<String> _sendChatCompletion({
+  Future<_ChatCompletionOutput> _sendChatCompletion({
     required PromptBundle promptBundle,
     required AiProfileConfig config,
   }) async {
@@ -127,8 +131,9 @@ class OpenAiCompatibleAiGateway implements IAiGateway {
       headers['Authorization'] = 'Bearer ${config.apiKey.trim()}';
     }
 
-    final payload = {
-      'model': config.selectedModel.trim(),
+    var effectiveModel = config.selectedModel.trim();
+    final payload = <String, dynamic>{
+      'model': effectiveModel,
       'messages': [
         {'role': 'system', 'content': promptBundle.systemPrompt},
         {'role': 'user', 'content': promptBundle.userMessage},
@@ -136,6 +141,22 @@ class OpenAiCompatibleAiGateway implements IAiGateway {
       'temperature': 0.7,
       'response_format': {'type': 'json_object'},
     };
+
+    if (config.isDeepThinking) {
+      payload['thinking'] = {'type': 'enabled'};
+      payload['reasoning_effort'] = 'high';
+      payload['enable_thinking'] = true;
+      if (effectiveModel == 'deepseek-chat') {
+        payload['model'] = 'deepseek-reasoner';
+      }
+    } else {
+      payload['thinking'] = {'type': 'disabled'};
+      payload['reasoning_effort'] = 'none';
+      payload['enable_thinking'] = false;
+      if (effectiveModel == 'deepseek-reasoner') {
+        payload['model'] = 'deepseek-chat';
+      }
+    }
 
     Response response;
     try {
@@ -149,22 +170,38 @@ class OpenAiCompatibleAiGateway implements IAiGateway {
         ),
       );
     } on DioException catch (e) {
-      // 若第三方模型不支持 response_format，尝试优雅降级重发一次
-      if (e.response?.statusCode == 400 &&
-          e.response?.data.toString().contains('response_format') == true) {
-        try {
+      if (e.response?.statusCode == 400) {
+        final errStr = e.response?.data.toString() ?? '';
+        bool retryNeeded = false;
+        if (payload.containsKey('response_format') &&
+            errStr.contains('response_format')) {
           payload.remove('response_format');
-          response = await _dio.post(
-            '$baseUrl/chat/completions',
-            data: payload,
-            options: Options(
-              headers: headers,
-              sendTimeout: const Duration(seconds: 60),
-              receiveTimeout: const Duration(seconds: 90),
-            ),
-          );
-        } on DioException catch (secondErr) {
-          throw _mapDioException(secondErr);
+          retryNeeded = true;
+        }
+        if (payload.containsKey('thinking') ||
+            payload.containsKey('reasoning_effort') ||
+            payload.containsKey('enable_thinking')) {
+          payload.remove('thinking');
+          payload.remove('reasoning_effort');
+          payload.remove('enable_thinking');
+          retryNeeded = true;
+        }
+        if (retryNeeded) {
+          try {
+            response = await _dio.post(
+              '$baseUrl/chat/completions',
+              data: payload,
+              options: Options(
+                headers: headers,
+                sendTimeout: const Duration(seconds: 60),
+                receiveTimeout: const Duration(seconds: 90),
+              ),
+            );
+          } on DioException catch (secondErr) {
+            throw _mapDioException(secondErr);
+          }
+        } else {
+          throw _mapDioException(e);
         }
       } else {
         throw _mapDioException(e);
@@ -178,8 +215,15 @@ class OpenAiCompatibleAiGateway implements IAiGateway {
         final firstChoice = choices.first as Map<String, dynamic>;
         final message = firstChoice['message'] as Map<String, dynamic>?;
         final content = message?['content'] as String?;
+        final reasoning = message?['reasoning_content'] as String? ??
+            message?['reasoning'] as String?;
         if (content != null && content.trim().isNotEmpty) {
-          return content;
+          return _ChatCompletionOutput(
+            content: content,
+            reasoningContent: (reasoning != null && reasoning.trim().isNotEmpty)
+                ? reasoning.trim()
+                : null,
+          );
         }
       }
     }
@@ -231,4 +275,14 @@ class OpenAiCompatibleAiGateway implements IAiGateway {
     }
     return trimmed;
   }
+}
+
+class _ChatCompletionOutput {
+  final String content;
+  final String? reasoningContent;
+
+  const _ChatCompletionOutput({
+    required this.content,
+    this.reasoningContent,
+  });
 }

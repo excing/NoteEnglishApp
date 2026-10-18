@@ -349,5 +349,45 @@ void main() {
       expect(find.byKey(const ValueKey('quick_polish_switch')), findsOneWidget);
       expect(find.text('状态栏快捷润色'), findsOneWidget);
     });
+
+    testWidgets('renders deep thinking switch and toggles and saves successfully', (tester) async {
+      tester.view.physicalSize = const Size(1024, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        buildTestWidget(
+          quickPolishState: const QuickPolishState(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final switchFinder = find.byKey(const ValueKey('deep_thinking_settings_switch'));
+      expect(switchFinder, findsOneWidget);
+      expect(find.text('深度思考模式 (Deep Thinking)'), findsOneWidget);
+
+      // 验证初始状态为 false
+      final initialSwitch = tester.widget<Switch>(switchFinder);
+      expect(initialSwitch.value, isFalse);
+
+      // 点击切换开关
+      await tester.tap(switchFinder);
+      await tester.pumpAndSettle();
+
+      final toggledSwitch = tester.widget<Switch>(switchFinder);
+      expect(toggledSwitch.value, isTrue);
+
+      // 点击保存
+      final saveBtn = find.byKey(const ValueKey('save_settings_button'));
+      await tester.tap(saveBtn);
+      await tester.pumpAndSettle();
+
+      verify(() => mockAiConfigRepo.saveConfig(
+            any(that: predicate<AiProfileConfig>((c) => c.isDeepThinking == true)),
+          )).called(1);
+    });
   });
 }

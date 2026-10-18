@@ -118,6 +118,7 @@ class EditorialAnalysisService {
       metadata: targetEntry.metadata,
       diaryContent: trimmed,
       customSystemPrompt: config.customSystemPrompt,
+      isDeepThinking: config.isDeepThinking,
     );
 
     // 5. 调用统一 AI 网关进行深度梳理

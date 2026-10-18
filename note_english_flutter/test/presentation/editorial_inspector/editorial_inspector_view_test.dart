@@ -334,4 +334,42 @@ void main() {
     expect(find.textContaining('重试成功解答。'), findsOneWidget);
     expect(find.textContaining('成功重试要点。'), findsOneWidget);
   });
+
+  testWidgets('EditorialInspectorView should render collapsible thinking process card when present',
+      (WidgetTester tester) async {
+    const analysisWithThinking = DiaryAnalysisResult(
+      originalStyleEnglishVersion: 'Original version',
+      authenticAdvancedVersion: 'Advanced version',
+      thinkingProcess: 'Step 1: Analyzed metaphor. Step 2: Formulated mindset bridge.',
+    );
+
+    tester.view.physicalSize = const Size(1000, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppThemeTokens.createThemeData(isDark: false),
+        home: Scaffold(
+          body: BlocProvider.value(
+            value: inquiryCubit,
+            child: EditorialInspectorView(
+              analysisResult: analysisWithThinking,
+              currentEntry: sampleEntry,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('thinking_process_card')), findsOneWidget);
+    expect(find.text('主编深度思考心路'), findsOneWidget);
+
+    // 展开查看思考心路内容
+    await tester.tap(find.byKey(const ValueKey('thinking_process_card')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Step 1: Analyzed metaphor'), findsOneWidget);
+  });
 }

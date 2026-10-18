@@ -104,6 +104,12 @@ class _EditorialInspectorViewState extends State<EditorialInspectorView> {
                 ),
                 const SizedBox(height: 16),
 
+                // 0. 主编深度思考心路 (若存在)
+                if (analysisResult.hasThinkingProcess) ...[
+                  _buildThinkingProcessCard(context, tokens, analysisResult.thinkingProcess!),
+                  const SizedBox(height: 12),
+                ],
+
                 // 1. 非英文字词翻译及解释 (若无则自适应隐藏)
                 if (analysisResult.hasNonEnglishItems) ...[
                   _buildSectionHeader(
@@ -900,6 +906,69 @@ class _EditorialInspectorViewState extends State<EditorialInspectorView> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildThinkingProcessCard(
+    BuildContext context,
+    AppThemeTokens tokens,
+    String thinkingProcess,
+  ) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        dividerColor: Colors.transparent,
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 4),
+        decoration: BoxDecoration(
+          color: tokens.amber.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: tokens.amber.withValues(alpha: 0.3),
+          ),
+        ),
+        child: ExpansionTile(
+          key: const ValueKey('thinking_process_card'),
+          initiallyExpanded: false,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+          leading: Icon(
+            Icons.psychology,
+            size: 20,
+            color: tokens.amber,
+          ),
+          title: Text(
+            '主编深度思考心路',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: tokens.textPrimary,
+            ),
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: tokens.card,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: tokens.cardBorder),
+                ),
+                child: Text(
+                  thinkingProcess,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: tokens.textPrimary,
+                    height: 1.6,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

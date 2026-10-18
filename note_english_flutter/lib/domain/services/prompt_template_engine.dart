@@ -60,6 +60,7 @@ class PromptTemplateEngine {
     required String diaryContent,
     String? customSystemPrompt,
     String? userLanguage,
+    bool isDeepThinking = false,
   }) {
     final effectiveLanguage = resolveEffectiveLanguage(userLanguage);
     final effectiveStylePrompt = (customSystemPrompt != null &&
@@ -69,8 +70,8 @@ class PromptTemplateEngine {
 
     final systemPrompt = '''
 $effectiveStylePrompt
-
-${AiContracts.getDiaryAnalysisSchemaInstruction(effectiveLanguage)}
+${isDeepThinking ? '\n${AiContracts.deepThinkingPromptInstruction}\n' : ''}
+${AiContracts.getDiaryAnalysisSchemaInstruction(effectiveLanguage, isDeepThinking)}
 ''';
 
     final dateFormatted =

@@ -9,6 +9,7 @@ class AiContracts {
   static const String keyUnnaturalExpressions = 'unnaturalExpressions';
   static const String keyAuthenticAdvancedVersion = 'authenticAdvancedVersion';
   static const String keyExtractedCorpus = 'extractedCorpus';
+  static const String keyThinkingProcess = 'thinkingProcess';
 
   // ================= 追问结构化字段键名 =================
   static const String keyInquiryReply = 'reply';
@@ -27,8 +28,19 @@ class AiContracts {
       '你的任务是帮助英语学习者通过随笔写作提升母语级地道语感。'
       '收起教导主任式的刻板语法批改，用温暖优雅的笔触，提供原汁原味的英文重塑与思维桥梁。';
 
+  // ================= 深度思考模式系统指引 =================
+  static const String deepThinkingPromptInstruction =
+      '【深度思考模式已启用】\n'
+      '你当前处于“深度思考”模式。请进行更深层次、更细致的文学与语言学推演：\n'
+      '1. 深入剖析作者写作时的潜意识心理流、情绪起伏与微观情境；\n'
+      '2. 在思维桥梁（Mindset Bridge）中，不仅对比字面差异，更需深度解构母语思维与英文母语思维在隐喻认知、语用预设与语域选择上的根本逻辑分歧；\n'
+      '3. 输出时需在 JSON 中增加 "$keyThinkingProcess" 字段，详细记录你作为主编的推演与构思心路。';
+
   // ================= 随笔梳理的不可篡改系统底座协议 =================
-  static String getDiaryAnalysisSchemaInstruction([String userLanguage = '中文']) {
+  static String getDiaryAnalysisSchemaInstruction([
+    String userLanguage = '中文',
+    bool isDeepThinking = false,
+  ]) {
     final stylePrefix = userLanguage.endsWith('文')
         ? userLanguage.substring(0, userLanguage.length - 1)
         : (userLanguage.endsWith('语')
@@ -38,7 +50,7 @@ class AiContracts {
 【重要约束：输出格式协议】
 你必须且只能返回纯 JSON 对象，严禁包含任何 Markdown 格式代码块围栏（如 ```json），严禁输出任何多余的解释文字。
 JSON 必须严格遵循以下结构规范：
-{
+{${isDeepThinking ? '\n  "$keyThinkingProcess": "主编深度构思、语境推演与思维转换的完整心路历程",' : ''}
   "$keyNonEnglish": [
     {
       "original": "非英文字词原文 (若日记正文中完全没有$userLanguage或其他非英语汇，此列表必须为空数组 [])",

@@ -46,6 +46,21 @@ void main() {
       expect(promptBundle.userMessage, contains(diaryContent));
     });
 
+    test('should inject deep thinking instructions and schema when isDeepThinking is true', () {
+      final metadata = DiaryMetadata(
+        recordedAt: DateTime(2026, 10, 10, 21, 30),
+        wordCount: 10,
+      );
+      final promptBundle = engine.buildAnalysisPromptBundle(
+        metadata: metadata,
+        diaryContent: 'Rainy evening and pour-over coffee.',
+        isDeepThinking: true,
+      );
+
+      expect(promptBundle.systemPrompt, contains(AiContracts.keyThinkingProcess));
+      expect(promptBundle.systemPrompt, contains('深度思考模式'));
+    });
+
     test('should assemble inquiry prompt preserving full context and strict inquiry schema', () {
       const diaryContent = 'Today work overtime until 9pm.';
       const analysisContext = '{"originalStyleEnglishVersion": "I worked late until 9pm."}';
@@ -150,6 +165,21 @@ void main() {
       expect(response.examples.length, 2);
       expect(response.extractedCorpus.length, 1);
       expect(response.extractedCorpus.first.expression, 'put in overtime');
+    });
+
+    test('should parse diary analysis with thinkingProcess correctly', () {
+      final jsonWithThinking = {
+        AiContracts.keyOriginalStyleVersion: 'Original',
+        AiContracts.keyAuthenticAdvancedVersion: 'Advanced',
+        AiContracts.keyThinkingProcess: 'Step 1: Analyzed mood. Step 2: Mindset bridge.',
+      };
+
+      final result = DiaryAnalysisResult.fromJson(jsonWithThinking);
+      expect(result.hasThinkingProcess, isTrue);
+      expect(result.thinkingProcess, 'Step 1: Analyzed mood. Step 2: Mindset bridge.');
+
+      final serialized = result.toJson();
+      expect(serialized[AiContracts.keyThinkingProcess], 'Step 1: Analyzed mood. Step 2: Mindset bridge.');
     });
   });
 }
