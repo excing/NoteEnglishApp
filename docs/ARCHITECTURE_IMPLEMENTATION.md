@@ -18,7 +18,8 @@
   - **配置聚合根与内置预设服务 (`domain/models/config/`)**：`AiProfileConfig`、`AiProviderType`、`BuiltInAiService`（单一信源预设服务商，默认首选 OVHcloud AI 免 Key 开放端点配合 `Qwen3.8-27B` 开箱即用，并支持 OpenAI 官方、DeepSeek 与自定义兼容端点）。
   - **语料资产聚合 (`domain/models/corpus/`)**：`CorpusItem`、`CorpusSource`（情境原句与随笔溯源）、`MasteryStatus`。
   - **领域服务 (`domain/services/`)**：
-    - `PromptTemplateEngine`：双层提示词引擎（用户自定义风格与底层不可篡改 JSON Schema 分离装配）。
+    - `UserLanguageResolver`：操作系统语言解析单一信源（自动识别用户电脑系统语言，如中文、日文、法文等）。
+    - `PromptTemplateEngine`：双层提示词引擎（保持原版提示词严密结构不变，将硬编码“中文/中式”原位替换为用户系统语言，释义与思维桥梁自动精准适配）。
     - `CorpusIngestionService`：语料自动去重与入库服务（梳理与追问抽取的语料隐蔽入库）。
   - **仓储与网关抽象**：`IDiaryRepository`、`ICorpusRepository`、`IAiConfigRepository`、`IAiGateway`。
 

@@ -56,12 +56,16 @@ void main() {
       aiSettingsCubit.close();
     });
 
-    Widget buildTestWidget({required QuickPolishState quickPolishState}) {
+    Widget buildTestWidget({
+      required QuickPolishState quickPolishState,
+      TargetPlatform platform = TargetPlatform.macOS,
+    }) {
       when(() => mockQuickPolishCubit.state).thenReturn(quickPolishState);
       when(() => mockQuickPolishCubit.stream).thenAnswer((_) => Stream.value(quickPolishState));
 
       return MaterialApp(
         theme: ThemeData.light().copyWith(
+          platform: platform,
           extensions: [AppThemeTokens.light],
         ),
         home: MultiBlocProvider(
@@ -283,6 +287,67 @@ void main() {
       expect(find.text('API Key (免密可选)'), findsOneWidget);
 
       defaultCubit.close();
+    });
+
+    testWidgets('hides quick polish switch and section completely on non-macOS platforms (Windows, Android, iOS, Linux)', (tester) async {
+      tester.view.physicalSize = const Size(1024, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      for (final nonMacPlatform in [
+        TargetPlatform.windows,
+        TargetPlatform.android,
+        TargetPlatform.iOS,
+        TargetPlatform.linux,
+      ]) {
+        await tester.pumpWidget(
+          buildTestWidget(
+            quickPolishState: const QuickPolishState(
+              isEnabled: true,
+              isAccessibilityGranted: true,
+            ),
+            platform: nonMacPlatform,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey('quick_polish_switch')),
+          findsNothing,
+          reason: 'Quick polish switch must be hidden on $nonMacPlatform',
+        );
+        expect(
+          find.text('状态栏快捷润色'),
+          findsNothing,
+          reason: 'Quick polish header must be hidden on $nonMacPlatform',
+        );
+      }
+    });
+
+    testWidgets('shows quick polish switch and section on macOS platform', (tester) async {
+      tester.view.physicalSize = const Size(1024, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        buildTestWidget(
+          quickPolishState: const QuickPolishState(
+            isEnabled: true,
+            isAccessibilityGranted: true,
+          ),
+          platform: TargetPlatform.macOS,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('quick_polish_switch')), findsOneWidget);
+      expect(find.text('状态栏快捷润色'), findsOneWidget);
     });
   });
 }

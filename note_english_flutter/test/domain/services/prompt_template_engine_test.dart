@@ -47,5 +47,63 @@ void main() {
       expect(bundle.userMessage, contains('当时天气: 🌧️ 下雨'));
       expect(bundle.userMessage, isNot(contains('体感')));
     });
+
+    test('dynamically adapts prompt to Japanese system locale via in-place replacement', () {
+      final customEngine = PromptTemplateEngine(
+        userLanguage: '日文',
+      );
+
+      final metadata = DiaryMetadata(
+        recordedAt: DateTime(2026, 10, 13, 14, 0),
+        weather: WeatherCondition.sunny,
+        wordCount: 10,
+      );
+
+      final bundle = customEngine.buildAnalysisPromptBundle(
+        metadata: metadata,
+        diaryContent: '今日はとても天気が良かったです。I went to the park.',
+      );
+
+      // 验证提示词结构完全保持原样，只将中文直接替换为日文
+      expect(bundle.systemPrompt, contains('若日记正文中完全没有日文或其他非英语汇'));
+      expect(bundle.systemPrompt, contains('日式思维的表述'));
+      expect(bundle.systemPrompt, contains('剖析日文母语思维与英文母语思维的转换逻辑'));
+      expect(bundle.systemPrompt, contains('精准日文释义'));
+      // 验证未添加多余的环境声明块
+      expect(bundle.systemPrompt, isNot(contains('【用户环境】')));
+      expect(bundle.systemPrompt, isNot(contains('剖析中文母语思维')));
+    });
+
+    test('dynamically adapts prompt to French system locale via in-place replacement', () {
+      final customEngine = PromptTemplateEngine(
+        userLanguage: '法文',
+      );
+
+      final bundle = customEngine.buildQuickPolishPromptBundle(
+        selectedText: 'Je voudrais commander un café.',
+      );
+
+      expect(bundle.systemPrompt, contains('精准法文释义'));
+      expect(bundle.systemPrompt, isNot(contains('【用户环境】')));
+      expect(bundle.userMessage, contains('若内容为法文'));
+      expect(bundle.userMessage, contains('消除法式英文与生硬表达'));
+    });
+
+    test('dynamically adapts inquiry prompt to target system locale via in-place replacement', () {
+      final customEngine = PromptTemplateEngine(
+        userLanguage: '西班牙文',
+      );
+
+      final bundle = customEngine.buildInquiryPromptBundle(
+        diaryContent: 'test diary',
+        analysisContext: 'analysis context',
+        historyTurns: const [],
+        userQuestion: 'How to use this?',
+      );
+
+      expect(bundle.systemPrompt, contains('精准西班牙文释义'));
+      expect(bundle.systemPrompt, isNot(contains('【用户环境】')));
+    });
   });
 }
+

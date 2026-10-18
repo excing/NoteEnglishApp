@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:intl/intl.dart';
 import 'package:note_english_flutter/domain/contracts/ai_contracts.dart';
 import 'package:note_english_flutter/domain/models/diary/diary_metadata.dart';
+import 'package:note_english_flutter/domain/services/user_language_resolver.dart';
 
 /// 提示词数据包，包含装配后的 systemPrompt 与 userMessage
 class PromptBundle extends Equatable {
@@ -33,14 +34,34 @@ class HistoryTurnItem extends Equatable {
 
 /// 双层提示词组装引擎 (Domain Service)
 class PromptTemplateEngine {
-  const PromptTemplateEngine();
+  final UserLanguageResolver _languageResolver;
+  final String? _userLanguage;
+
+  const PromptTemplateEngine({
+    UserLanguageResolver languageResolver = const UserLanguageResolver(),
+    String? userLanguage,
+  })  : _languageResolver = languageResolver,
+        _userLanguage = userLanguage;
+
+  /// 解析生效的用户操作系统语言
+  String resolveEffectiveLanguage([String? customLanguage]) {
+    if (customLanguage != null && customLanguage.trim().isNotEmpty) {
+      return customLanguage.trim();
+    }
+    if (_userLanguage != null && _userLanguage.trim().isNotEmpty) {
+      return _userLanguage.trim();
+    }
+    return _languageResolver.resolveLanguageName();
+  }
 
   /// 组装随笔 AI 梳理提示词
   PromptBundle buildAnalysisPromptBundle({
     required DiaryMetadata metadata,
     required String diaryContent,
     String? customSystemPrompt,
+    String? userLanguage,
   }) {
+    final effectiveLanguage = resolveEffectiveLanguage(userLanguage);
     final effectiveStylePrompt = (customSystemPrompt != null &&
             customSystemPrompt.trim().isNotEmpty)
         ? customSystemPrompt.trim()
@@ -49,7 +70,7 @@ class PromptTemplateEngine {
     final systemPrompt = '''
 $effectiveStylePrompt
 
-${AiContracts.diaryAnalysisSchemaInstruction}
+${AiContracts.getDiaryAnalysisSchemaInstruction(effectiveLanguage)}
 ''';
 
     final dateFormatted =
@@ -95,7 +116,9 @@ $diaryContent
     required List<HistoryTurnItem> historyTurns,
     required String userQuestion,
     String? customSystemPrompt,
+    String? userLanguage,
   }) {
+    final effectiveLanguage = resolveEffectiveLanguage(userLanguage);
     final effectiveStylePrompt = (customSystemPrompt != null &&
             customSystemPrompt.trim().isNotEmpty)
         ? customSystemPrompt.trim()
@@ -104,7 +127,7 @@ $diaryContent
     final systemPrompt = '''
 $effectiveStylePrompt
 
-${AiContracts.inquirySchemaInstruction}
+${AiContracts.getInquirySchemaInstruction(effectiveLanguage)}
 ''';
 
     final buffer = StringBuffer();
@@ -140,7 +163,9 @@ ${AiContracts.inquirySchemaInstruction}
   PromptBundle buildQuickPolishPromptBundle({
     required String selectedText,
     String? customSystemPrompt,
+    String? userLanguage,
   }) {
+    final effectiveLanguage = resolveEffectiveLanguage(userLanguage);
     final effectiveStylePrompt = (customSystemPrompt != null &&
             customSystemPrompt.trim().isNotEmpty)
         ? customSystemPrompt.trim()
@@ -149,11 +174,17 @@ ${AiContracts.inquirySchemaInstruction}
     final systemPrompt = '''
 $effectiveStylePrompt
 
-${AiContracts.quickPolishSchemaInstruction}
+${AiContracts.getQuickPolishSchemaInstruction(effectiveLanguage)}
 ''';
 
+    final stylePrefix = effectiveLanguage.endsWith('文')
+        ? effectiveLanguage.substring(0, effectiveLanguage.length - 1)
+        : (effectiveLanguage.endsWith('语')
+            ? effectiveLanguage.substring(0, effectiveLanguage.length - 1)
+            : effectiveLanguage);
+
     final userMessage = '''
-请将以下用户选中的内容进行地道化快速润色重塑。若内容为中文，请翻译为地道、优雅自然的纯正母语级英文；若内容已为英文，请消除中式英文与生硬表达，提升文采与地道度：
+请将以下用户选中的内容进行地道化快速润色重塑。若内容为$effectiveLanguage，请翻译为地道、优雅自然的纯正母语级英文；若内容已为英文，请消除${stylePrefix}式英文与生硬表达，提升文采与地道度：
 
 $selectedText
 ''';

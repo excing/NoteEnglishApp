@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:note_english_flutter/app/service_locator.dart';
@@ -334,8 +335,10 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
                       height: 1.4,
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  _buildQuickPolishSection(context, tokens),
+                  if (_isQuickPolishSupported(context)) ...[
+                    const SizedBox(height: 20),
+                    _buildQuickPolishSection(context, tokens),
+                  ],
                   const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -381,6 +384,12 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
     );
   }
 
+  bool _isQuickPolishSupported(BuildContext context) {
+    // 菜单栏常驻与系统级划词快捷润色能力强依赖 macOS 的 NSStatusItem 与 Accessibility API 原生宿主
+    // 其他端 (Windows, Linux, iOS, Android, Web) 暂不支持，按规范予以完全隐藏
+    return !kIsWeb && Theme.of(context).platform == TargetPlatform.macOS;
+  }
+
   QuickPolishCubit? _getQuickPolishCubit(BuildContext context) {
     try {
       return context.read<QuickPolishCubit>();
@@ -393,6 +402,8 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
   }
 
   Widget _buildQuickPolishSection(BuildContext context, AppThemeTokens tokens) {
+    if (!_isQuickPolishSupported(context)) return const SizedBox.shrink();
+
     final cubit = _getQuickPolishCubit(context);
     if (cubit == null) return const SizedBox.shrink();
 
