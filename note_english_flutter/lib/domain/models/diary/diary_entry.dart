@@ -101,15 +101,24 @@ class DiaryEntry extends Equatable {
     );
   }
 
-  /// 追加一轮用户追问
+  /// 追加或更新一轮用户追问
   DiaryEntry withInquiryTurn(InquiryTurn turn) {
+    final existingIndex = inquiryHistory.indexWhere((t) => t.id == turn.id);
+    final updatedList = existingIndex >= 0
+        ? [
+            ...inquiryHistory.sublist(0, existingIndex),
+            turn,
+            ...inquiryHistory.sublist(existingIndex + 1),
+          ]
+        : [...inquiryHistory, turn];
+
     return DiaryEntry(
       id: id,
       content: content,
       metadata: metadata,
       status: status,
       analysisResult: analysisResult,
-      inquiryHistory: [...inquiryHistory, turn],
+      inquiryHistory: updatedList,
     );
   }
 

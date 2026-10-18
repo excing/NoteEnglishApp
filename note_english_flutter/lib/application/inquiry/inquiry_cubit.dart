@@ -77,7 +77,7 @@ class InquiryCubit extends Cubit<InquiryState> {
     ));
   }
 
-  /// 向 AI 发起情境追问
+  /// 向 AI 发起情境追问 (立即在列表上屏呈现，支持失败就地重试)
   Future<void> askQuestion({
     required String question,
     required DiaryEntry currentEntry,
@@ -85,22 +85,69 @@ class InquiryCubit extends Cubit<InquiryState> {
     final trimmedQuestion = question.trim();
     if (trimmedQuestion.isEmpty) return;
 
-    emit(state.copyWith(isLoading: true, errorMessage: null));
+    final pendingTurn = InquiryTurn.pending(userQuestion: trimmedQuestion);
+    final currentHistory = [...state.history, pendingTurn];
 
+    // 1. 立即上屏：先将 pending 状态的追问卡片 emit 给 UI，实现零延迟反馈
+    emit(state.copyWith(
+      isLoading: true,
+      errorMessage: null,
+      history: currentHistory,
+    ));
+
+    await _executeInquiry(
+      turn: pendingTurn,
+      currentEntry: currentEntry,
+    );
+  }
+
+  /// 重试指定追问回合
+  Future<void> retryQuestion({
+    required String turnId,
+    required DiaryEntry currentEntry,
+  }) async {
+    final index = state.history.indexWhere((t) => t.id == turnId);
+    if (index < 0) return;
+
+    final oldTurn = state.history[index];
+    final pendingTurn = oldTurn.toPending();
+    final updatedHistory = [
+      ...state.history.sublist(0, index),
+      pendingTurn,
+      ...state.history.sublist(index + 1),
+    ];
+
+    emit(state.copyWith(
+      isLoading: true,
+      errorMessage: null,
+      history: updatedHistory,
+    ));
+
+    await _executeInquiry(
+      turn: pendingTurn,
+      currentEntry: currentEntry,
+    );
+  }
+
+  /// 共享追问网络与语料入库调度逻辑
+  Future<void> _executeInquiry({
+    required InquiryTurn turn,
+    required DiaryEntry currentEntry,
+  }) async {
     try {
       final config = await _configRepository.getConfig();
       if (!config.isConfigured) {
-        emit(state.copyWith(
-          isLoading: false,
-          errorMessage: '尚未配置 AI 接口，请先在右上角【设置】中配置 API Key 与端点',
-        ));
+        const errorMsg = '尚未配置 AI 接口，请先在右上角【设置】中配置 API Key 与端点';
+        _updateTurnFailure(turn: turn, errorMessage: errorMsg);
         return;
       }
 
+      // 仅将已经成功解答的回合作为历史上下文注入 prompt
       final historyTurns = state.history
+          .where((t) => t.id != turn.id && t.isSuccess && t.response != null)
           .map((t) => HistoryTurnItem(
                 question: t.userQuestion,
-                answer: t.response.reply,
+                answer: t.response!.reply,
               ))
           .toList();
 
@@ -112,7 +159,7 @@ class InquiryCubit extends Cubit<InquiryState> {
         diaryContent: currentEntry.content,
         analysisContext: analysisContext,
         historyTurns: historyTurns,
-        userQuestion: trimmedQuestion,
+        userQuestion: turn.userQuestion,
         customSystemPrompt: config.customSystemPrompt,
       );
 
@@ -127,7 +174,7 @@ class InquiryCubit extends Cubit<InquiryState> {
         final existing = await _corpusRepository.getExistingExpressions();
         final corpusSource = CorpusSource(
           diaryId: currentEntry.id,
-          sourceSnippet: trimmedQuestion,
+          sourceSnippet: turn.userQuestion,
           sourceType: CorpusSourceType.inquiry,
           createdAt: DateTime.now(),
         );
@@ -144,13 +191,17 @@ class InquiryCubit extends Cubit<InquiryState> {
         }
       }
 
-      final turn = InquiryTurn.create(
-        userQuestion: trimmedQuestion,
-        response: response,
-      );
+      final successTurn = turn.toSuccess(response);
+      final index = state.history.indexWhere((t) => t.id == turn.id);
+      final updatedHistory = index >= 0
+          ? [
+              ...state.history.sublist(0, index),
+              successTurn,
+              ...state.history.sublist(index + 1),
+            ]
+          : [...state.history, successTurn];
 
-      final updatedHistory = [...state.history, turn];
-      final updatedEntry = currentEntry.withInquiryTurn(turn);
+      final updatedEntry = currentEntry.withInquiryTurn(successTurn);
       await _diaryRepository.saveEntry(updatedEntry);
 
       emit(state.copyWith(
@@ -159,10 +210,29 @@ class InquiryCubit extends Cubit<InquiryState> {
         silentCorpusCount: newCorpusCount,
       ));
     } catch (e) {
-      emit(state.copyWith(
-        isLoading: false,
-        errorMessage: e is AiFailure ? e.message : '追问解答失败: $e',
-      ));
+      final errorMsg = e is AiFailure ? e.message : '追问解答失败: $e';
+      _updateTurnFailure(turn: turn, errorMessage: errorMsg);
     }
+  }
+
+  void _updateTurnFailure({
+    required InquiryTurn turn,
+    required String errorMessage,
+  }) {
+    final failedTurn = turn.toFailed(errorMessage);
+    final index = state.history.indexWhere((t) => t.id == turn.id);
+    final updatedHistory = index >= 0
+        ? [
+            ...state.history.sublist(0, index),
+            failedTurn,
+            ...state.history.sublist(index + 1),
+          ]
+        : [...state.history, failedTurn];
+
+    emit(state.copyWith(
+      isLoading: false,
+      history: updatedHistory,
+      errorMessage: errorMessage,
+    ));
   }
 }

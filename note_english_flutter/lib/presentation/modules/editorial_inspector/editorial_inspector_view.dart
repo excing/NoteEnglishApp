@@ -457,195 +457,322 @@ class _EditorialInspectorViewState extends State<EditorialInspectorView> {
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              // 用户提问气泡 (靠右)
+                              // 1. 用户提问气泡 (靠右立即上屏)
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: Container(
-                                  margin: const EdgeInsets.only(left: 48, bottom: 12),
+                                  margin: const EdgeInsets.only(left: 48, bottom: 10),
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 14,
                                     vertical: 10,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: tokens.terracotta,
+                                    color: turn.isFailed
+                                        ? tokens.terracotta.withValues(alpha: 0.85)
+                                        : tokens.terracotta,
                                     borderRadius: BorderRadius.circular(14),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.05),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
                                   ),
                                   child: Text(
                                     turn.userQuestion,
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 14,
+                                      height: 1.35,
                                     ),
                                   ),
                                 ),
                               ),
 
-                              // AI 结构化回复卡片
-                              PaperCard(
-                                margin: const EdgeInsets.only(bottom: 16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // 1. 自然语言回复
-                                    Text(
-                                      resp.reply,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.copyWith(
-                                            color: tokens.textPrimary,
-                                            fontSize: 14,
-                                            height: 1.5,
-                                          ),
+                              // 2. 状态区：Pending 思考中微动效
+                              if (turn.isPending)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 16.0),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 12,
                                     ),
-                                    const SizedBox(height: 10),
-
-                                    // 2. 核心重点总结
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: tokens.highlight,
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: tokens.cardBorder),
+                                    decoration: BoxDecoration(
+                                      color: tokens.card.withValues(alpha: 0.8),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: tokens.cardBorder.withValues(alpha: 0.8),
                                       ),
-                                      child: Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text('💡',
-                                              style: const TextStyle(fontSize: 14)),
-                                          const SizedBox(width: 6),
-                                          Expanded(
-                                            child: Text.rich(
-                                              TextSpan(
-                                                children: [
-                                                  TextSpan(
-                                                    text: '核心重点: ',
-                                                    style: TextStyle(
-                                                      color: tokens.amber,
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 13,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        SizedBox(
+                                          width: 14,
+                                          height: 14,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: tokens.terracotta,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          '主编正在推敲语境与近义辨析...',
+                                          style: TextStyle(
+                                            color: tokens.textMuted,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+
+                              // 3. 状态区：Failed 失败诊断卡片与就地重试/回填
+                              if (turn.isFailed)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 16.0),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: tokens.terracotta.withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: tokens.terracotta.withValues(alpha: 0.35),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Icon(
+                                              Icons.error_outline,
+                                              size: 18,
+                                              color: tokens.terracotta,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                turn.failureMessage ?? '追问未成功送达',
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  color: tokens.terracotta,
+                                                  fontWeight: FontWeight.w500,
+                                                  height: 1.4,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.end,
+                                          children: [
+                                            TextButton.icon(
+                                              key: ValueKey('restore_inquiry_${turn.id}'),
+                                              onPressed: () {
+                                                _inquiryCtrl.text = turn.userQuestion;
+                                                _focusNode.requestFocus();
+                                              },
+                                              icon: Icon(
+                                                Icons.edit_note,
+                                                size: 16,
+                                                color: tokens.textMuted,
+                                              ),
+                                              label: Text(
+                                                '填回输入框',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: tokens.textMuted,
+                                                ),
+                                              ),
+                                              style: TextButton.styleFrom(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 4,
+                                                ),
+                                                visualDensity: VisualDensity.compact,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            ElevatedButton.icon(
+                                              key: ValueKey('retry_inquiry_${turn.id}'),
+                                              onPressed: state.isLoading
+                                                  ? null
+                                                  : () {
+                                                      context.read<InquiryCubit>().retryQuestion(
+                                                            turnId: turn.id,
+                                                            currentEntry: widget.currentEntry,
+                                                          );
+                                                    },
+                                              icon: const Icon(Icons.refresh, size: 14),
+                                              label: const Text(
+                                                '重试',
+                                                style: TextStyle(fontSize: 12),
+                                              ),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: tokens.terracotta,
+                                                foregroundColor: Colors.white,
+                                                elevation: 0,
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 6,
+                                                ),
+                                                visualDensity: VisualDensity.compact,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(16),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+
+                              // 4. 状态区：Success AI 结构化回复卡片
+                              if (turn.isSuccess && resp != null)
+                                PaperCard(
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      // 自然语言回复
+                                      Text(
+                                        resp.reply,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(
+                                              color: tokens.textPrimary,
+                                              fontSize: 14,
+                                              height: 1.5,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 10),
+
+                                      // 核心重点总结
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: tokens.highlight,
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: tokens.cardBorder),
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text('💡',
+                                                style: const TextStyle(fontSize: 14)),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Text.rich(
+                                                TextSpan(
+                                                  children: [
+                                                    TextSpan(
+                                                      text: '核心重点: ',
+                                                      style: TextStyle(
+                                                        color: tokens.amber,
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 13,
+                                                      ),
                                                     ),
-                                                  ),
-                                                  TextSpan(
-                                                    text: resp.keyTakeaway,
+                                                    TextSpan(
+                                                      text: resp.keyTakeaway,
+                                                      style: TextStyle(
+                                                        color: tokens.textPrimary,
+                                                        fontSize: 13,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+
+                                      // 延伸应用示例
+                                      if (resp.hasExamples) ...[
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          '延伸应用示例：',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: tokens.textMuted,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        ...resp.examples.map(
+                                          (ex) => Padding(
+                                            padding:
+                                                const EdgeInsets.only(bottom: 4.0),
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text('• ',
+                                                    style: TextStyle(
+                                                        color: tokens.terracotta)),
+                                                Expanded(
+                                                  child: Text(
+                                                    ex,
                                                     style: TextStyle(
                                                       color: tokens.textPrimary,
                                                       fontSize: 13,
+                                                      fontStyle: FontStyle.italic,
                                                     ),
                                                   ),
-                                                ],
-                                              ),
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                        ],
-                                      ),
-                                    ),
-
-                                    // 3. 延伸应用示例
-                                    if (resp.hasExamples) ...[
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        '延伸应用示例：',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: tokens.textMuted,
                                         ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      ...resp.examples.map(
-                                        (ex) => Padding(
-                                          padding:
-                                              const EdgeInsets.only(bottom: 4.0),
-                                          child: Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text('• ',
-                                                  style: TextStyle(
-                                                      color: tokens.terracotta)),
-                                              Expanded(
-                                                child: Text(
-                                                  ex,
-                                                  style: TextStyle(
-                                                    color: tokens.textPrimary,
-                                                    fontSize: 13,
-                                                    fontStyle: FontStyle.italic,
-                                                  ),
+                                      ],
+
+                                      // 追问中提取并入库的语料小微徽章
+                                      if (resp.extractedCorpus.isNotEmpty) ...[
+                                        const SizedBox(height: 10),
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 6,
+                                          children: resp.extractedCorpus.map((item) {
+                                            return Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 3,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: tokens.highlight,
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                border: Border.all(
+                                                    color: tokens.cardBorder),
+                                              ),
+                                              child: Text(
+                                                '已收录: ${item.expression} (${item.meaning})',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: tokens.sage,
+                                                  fontWeight: FontWeight.w500,
                                                 ),
                                               ),
-                                            ],
-                                          ),
+                                            );
+                                          }).toList(),
                                         ),
-                                      ),
+                                      ],
                                     ],
-
-                                    // 4. 追问中提取并入库的语料小微徽章
-                                    if (resp.extractedCorpus.isNotEmpty) ...[
-                                      const SizedBox(height: 10),
-                                      Wrap(
-                                        spacing: 6,
-                                        runSpacing: 6,
-                                        children: resp.extractedCorpus.map((item) {
-                                          return Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 3,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: tokens.highlight,
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              border: Border.all(
-                                                  color: tokens.cardBorder),
-                                            ),
-                                            child: Text(
-                                              '已收录: ${item.expression} (${item.meaning})',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: tokens.sage,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          );
-                                        }).toList(),
-                                      ),
-                                    ],
-                                  ],
+                                  ),
                                 ),
-                              ),
                             ],
                           );
                         }),
-
-                        // 加载态动效：主编沉思中
-                        if (state.isLoading)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 16.0),
-                            child: Center(
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: tokens.terracotta,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '主编沉思中...',
-                                    style: TextStyle(
-                                      color: tokens.textMuted,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
                       ],
                     );
                   },

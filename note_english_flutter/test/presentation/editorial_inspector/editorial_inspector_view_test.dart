@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:note_english_flutter/application/inquiry/inquiry_cubit.dart';
 import 'package:note_english_flutter/core/theme/app_theme_tokens.dart';
+import 'package:note_english_flutter/domain/errors/ai_failure.dart';
 import 'package:note_english_flutter/domain/gateways/ai_gateway.dart';
 import 'package:note_english_flutter/domain/services/prompt_template_engine.dart';
 import 'package:note_english_flutter/domain/models/analysis/diary_analysis_result.dart';
@@ -198,5 +200,138 @@ void main() {
     expect(find.textContaining('侄女'), findsOneWidget);
     expect(find.textContaining("nieces or nephews"), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('EditorialInspectorView should immediately display user question bubble and pending status before AI responds',
+      (WidgetTester tester) async {
+    // 模拟一个异步延迟响应的 Completer
+    final completer = Completer<InquiryStructuredResponse>();
+    when(() => aiGateway.inquire(
+          promptBundle: any(named: 'promptBundle'),
+          config: any(named: 'config'),
+        )).thenAnswer((_) => completer.future);
+
+    tester.view.physicalSize = const Size(1000, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppThemeTokens.createThemeData(isDark: false),
+        home: Scaffold(
+          body: BlocProvider.value(
+            value: inquiryCubit,
+            child: EditorialInspectorView(
+              analysisResult: sampleAnalysis,
+              currentEntry: sampleEntry,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final inputFinder = find.byKey(const ValueKey('inquiry_input_field'));
+    final buttonFinder = find.byKey(const ValueKey('send_inquiry_button'));
+
+    // 发送提问
+    await tester.enterText(inputFinder, '如何用更高级的词汇形容暴风雨？');
+    await tester.tap(buttonFinder);
+    await tester.pump(); // 触发立即上屏，此时 AI 尚未返回！
+
+    // 1. 验证用户提问气泡立即上屏
+    expect(find.text('如何用更高级的词汇形容暴风雨？'), findsOneWidget);
+
+    // 2. 验证正在推敲的专属思考动效展示
+    expect(find.text('主编正在推敲语境与近义辨析...'), findsOneWidget);
+
+    // 3. 验证输入框已被清空且处于禁用状态
+    final textField = tester.widget<TextField>(inputFinder);
+    expect(textField.controller?.text, isEmpty);
+    expect(textField.enabled, isFalse);
+
+    // 完成 AI 响应
+    completer.complete(const InquiryStructuredResponse(
+      reply: '可以使用 tempestuous storm 或者 raging deluge。',
+      keyTakeaway: '使用暴烈意象的文学词汇。',
+    ));
+    await tester.pumpAndSettle();
+
+    // 4. 验证思考动效消失，结构化卡片呈现
+    expect(find.text('主编正在推敲语境与近义辨析...'), findsNothing);
+    expect(find.textContaining('tempestuous storm'), findsOneWidget);
+  });
+
+  testWidgets('EditorialInspectorView should display failure state with retry and restore buttons when inquiry fails',
+      (WidgetTester tester) async {
+    when(() => aiGateway.inquire(
+          promptBundle: any(named: 'promptBundle'),
+          config: any(named: 'config'),
+        )).thenThrow(const AiNetworkFailure('连接 AI 服务超时'));
+
+    tester.view.physicalSize = const Size(1000, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppThemeTokens.createThemeData(isDark: false),
+        home: Scaffold(
+          body: BlocProvider.value(
+            value: inquiryCubit,
+            child: EditorialInspectorView(
+              analysisResult: sampleAnalysis,
+              currentEntry: sampleEntry,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final inputFinder = find.byKey(const ValueKey('inquiry_input_field'));
+    final buttonFinder = find.byKey(const ValueKey('send_inquiry_button'));
+
+    await tester.enterText(inputFinder, '这个短语的文化背景是什么？');
+    await tester.tap(buttonFinder);
+    await tester.pumpAndSettle();
+
+    // 1. 验证用户提问保留在列表气泡中
+    expect(find.text('这个短语的文化背景是什么？'), findsOneWidget);
+
+    // 2. 验证错误提示呈现
+    expect(find.textContaining('连接 AI 服务超时'), findsWidgets);
+
+    // 3. 验证重试与回填按钮存在
+    final turnId = inquiryCubit.state.history.first.id;
+    final retryBtnFinder = find.byKey(ValueKey('retry_inquiry_$turnId'));
+    final restoreBtnFinder = find.byKey(ValueKey('restore_inquiry_$turnId'));
+    expect(retryBtnFinder, findsOneWidget);
+    expect(restoreBtnFinder, findsOneWidget);
+
+    // 4. 测试点击【填回输入框】
+    await tester.tap(restoreBtnFinder);
+    await tester.pumpAndSettle();
+    final restoredField = tester.widget<TextField>(inputFinder);
+    expect(restoredField.controller?.text, '这个短语的文化背景是什么？');
+
+    // 5. 测试点击【重试】
+    final retryCompleter = Completer<InquiryStructuredResponse>();
+    when(() => aiGateway.inquire(
+          promptBundle: any(named: 'promptBundle'),
+          config: any(named: 'config'),
+        )).thenAnswer((_) => retryCompleter.future);
+
+    await tester.tap(retryBtnFinder);
+    await tester.pump(); // 进入重试 pending
+    expect(find.text('主编正在推敲语境与近义辨析...'), findsOneWidget);
+
+    retryCompleter.complete(const InquiryStructuredResponse(
+      reply: '重试成功解答。',
+      keyTakeaway: '成功重试要点。',
+    ));
+    await tester.pumpAndSettle(); // 重试完成
+    expect(find.textContaining('重试成功解答。'), findsOneWidget);
+    expect(find.textContaining('成功重试要点。'), findsOneWidget);
   });
 }
