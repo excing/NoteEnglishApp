@@ -193,7 +193,8 @@ class _InquiryBottomSheetState extends State<InquiryBottomSheet> {
                         ),
 
                         // AI 结构化回复卡片
-                        PaperCard(
+                        if (resp != null)
+                          PaperCard(
                           margin: const EdgeInsets.only(bottom: 20),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

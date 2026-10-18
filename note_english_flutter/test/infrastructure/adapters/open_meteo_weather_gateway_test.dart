@@ -117,5 +117,82 @@ void main() {
         throwsA(isA<Exception>()),
       );
     });
+
+    test('fetchWeatherAuto uses FreeIPAPI when geolocation succeeds', () async {
+      // 模拟 FreeIPAPI 成功返回广州经纬度
+      when(() => mockDio.get(
+            'https://freeipapi.com/api/json',
+            options: any(named: 'options'),
+          )).thenAnswer((_) async => Response(
+            requestOptions: RequestOptions(path: ''),
+            statusCode: 200,
+            data: {
+              'latitude': 23.13,
+              'longitude': 113.26,
+              'cityName': 'Guangzhou',
+            },
+          ));
+
+      when(() => mockDio.get(
+            'https://api.open-meteo.com/v1/forecast',
+            queryParameters: any(named: 'queryParameters'),
+          )).thenAnswer((_) async => Response(
+            requestOptions: RequestOptions(path: ''),
+            statusCode: 200,
+            data: {
+              'latitude': 23.13,
+              'longitude': 113.26,
+              'current': {
+                'temperature_2m': 28.0,
+                'wind_speed_10m': 5.0,
+                'weather_code': 0,
+              },
+            },
+          ));
+
+      final report = await gateway.fetchWeatherAuto();
+
+      expect(report.locationName, 'Guangzhou');
+      expect(report.temperature, 28.0);
+      expect(report.latitude, 23.13);
+      expect(report.longitude, 113.26);
+    });
+
+    test('fetchWeatherAuto gracefully falls back to Beijing when FreeIPAPI fails', () async {
+      // 模拟 FreeIPAPI 网络超时/报错
+      when(() => mockDio.get(
+            'https://freeipapi.com/api/json',
+            options: any(named: 'options'),
+          )).thenThrow(
+        DioException(
+          requestOptions: RequestOptions(path: ''),
+          type: DioExceptionType.connectionTimeout,
+        ),
+      );
+
+      when(() => mockDio.get(
+            'https://api.open-meteo.com/v1/forecast',
+            queryParameters: any(named: 'queryParameters'),
+          )).thenAnswer((_) async => Response(
+            requestOptions: RequestOptions(path: ''),
+            statusCode: 200,
+            data: {
+              'latitude': OpenMeteoWeatherGateway.defaultLatitude,
+              'longitude': OpenMeteoWeatherGateway.defaultLongitude,
+              'current': {
+                'temperature_2m': 15.0,
+                'wind_speed_10m': 6.0,
+                'weather_code': 0,
+              },
+            },
+          ));
+
+      final report = await gateway.fetchWeatherAuto();
+
+      expect(report.locationName, OpenMeteoWeatherGateway.defaultCityName);
+      expect(report.latitude, OpenMeteoWeatherGateway.defaultLatitude);
+      expect(report.longitude, OpenMeteoWeatherGateway.defaultLongitude);
+      expect(report.temperature, 15.0);
+    });
   });
 }
