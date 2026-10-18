@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:note_english_flutter/application/corpus/corpus_deck_cubit.dart';
 import 'package:note_english_flutter/core/theme/app_theme_tokens.dart';
+import 'package:note_english_flutter/core/theme/app_typography.dart';
 import 'package:note_english_flutter/domain/models/corpus/mastery_status.dart';
 import 'package:note_english_flutter/presentation/common_widgets/paper_card.dart';
 
@@ -135,11 +136,7 @@ class CorpusDeckPage extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         item.phonetic,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: tokens.textMuted,
-                          fontStyle: FontStyle.italic,
-                        ),
+                        style: AppTypography.phonetic(tokens.textMuted),
                       ),
                     ],
                     const SizedBox(height: 8),
