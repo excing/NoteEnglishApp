@@ -2,17 +2,13 @@ import Cocoa
 import FlutterMacOS
 import UserNotifications
 
-/// macOS 原生菜单栏常驻与全局快捷键文本润色管理器
+/// macOS 原生菜单栏常驻文本润色管理器
 class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
   static let shared = QuickPolishManager()
 
   private var statusItem: NSStatusItem?
   private var methodChannel: FlutterMethodChannel?
   private weak var mainWindow: NSWindow?
-  private var globalMonitor: Any?
-  private var localMonitor: Any?
-  private var eventTap: CFMachPort?
-  private var runLoopSource: CFRunLoopSource?
   private var isEnabled: Bool = false
   private var lastExternalApp: NSRunningApplication?
 
@@ -26,7 +22,7 @@ class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
     setupMethodCallHandler()
     setupNotifications()
     setupActiveAppObserver()
-    // 默认关闭桌面菜单栏常驻与全局热键，由 Flutter 端根据持久化配置驱动 setQuickPolishEnabled 激活
+    // 默认关闭桌面菜单栏常驻，由 Flutter 端根据持久化配置驱动 setQuickPolishEnabled 激活
   }
 
   private func setupActiveAppObserver() {
@@ -43,17 +39,6 @@ class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
       if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
          app.bundleIdentifier != Bundle.main.bundleIdentifier {
         self?.lastExternalApp = app
-      }
-    }
-
-    NotificationCenter.default.addObserver(
-      forName: NSApplication.didBecomeActiveNotification,
-      object: nil,
-      queue: .main
-    ) { [weak self] _ in
-      guard let self = self else { return }
-      if self.isEnabled && self.eventTap == nil && self.isAccessibilityGranted() {
-        self.setupEventTap()
       }
     }
   }
@@ -91,11 +76,7 @@ class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
         }
         result(true)
       case "isAccessibilityGranted":
-        let granted = self.isAccessibilityGranted()
-        if granted && self.isEnabled && self.eventTap == nil {
-          self.setupEventTap()
-        }
-        result(granted)
+        result(self.isAccessibilityGranted())
       case "requestAccessibilityPermission":
         self.requestAccessibilityPermission()
         result(true)
@@ -128,9 +109,7 @@ class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
         if self.statusItem == nil {
           self.setupStatusItem()
         }
-        self.setupGlobalHotkeys()
       } else {
-        self.teardownGlobalHotkeys()
         if let item = self.statusItem {
           NSStatusBar.system.removeStatusItem(item)
           self.statusItem = nil
@@ -166,11 +145,11 @@ class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
       } else {
         button.title = "🦦"
       }
-      button.toolTip = "OtterJot - 快捷润色 (fn + 空格)"
+      button.toolTip = "OtterJot - 快捷润色"
     }
 
     let menu = NSMenu()
-    let headerItem = NSMenuItem(title: "OtterJot 地道润色 (fn + 空格)", action: nil, keyEquivalent: "")
+    let headerItem = NSMenuItem(title: "OtterJot 地道润色", action: nil, keyEquivalent: "")
     headerItem.isEnabled = false
     menu.addItem(headerItem)
 
@@ -180,7 +159,7 @@ class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
     openItem.target = self
     menu.addItem(openItem)
 
-    let quickPolishItem = NSMenuItem(title: "润色选中内容 (fn + 空格 / ⌥ + 空格)", action: #selector(triggerQuickPolishFromMenu), keyEquivalent: "")
+    let quickPolishItem = NSMenuItem(title: "润色选中内容", action: #selector(triggerQuickPolishFromMenu), keyEquivalent: "")
     quickPolishItem.target = self
     menu.addItem(quickPolishItem)
 
@@ -190,7 +169,7 @@ class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
 
     menu.addItem(NSMenuItem.separator())
 
-    let quitItem = NSMenuItem(title: "退出 OtterJot", action: #selector(quitApp), keyEquivalent: "q")
+    let quitItem = NSMenuItem(title: "退出 OtterJot", action: #selector(quitApp), keyEquivalent: "")
     quitItem.target = self
     menu.addItem(quitItem)
 
@@ -210,11 +189,8 @@ class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
     NSApp.activate(ignoringOtherApps: true)
     let alert = NSAlert()
     if isAccessibilityGranted() {
-      if isEnabled && eventTap == nil {
-        setupEventTap()
-      }
       alert.messageText = "辅助功能权限已生效"
-      alert.informativeText = "OtterJot 已经拥有 macOS 辅助功能（设备控制）权限。\n您可以在任意应用中选中文本后，直接按下「fn + 空格」或「⌥ + 空格」进行原地地道润色！"
+      alert.informativeText = "OtterJot 已经拥有 macOS 辅助功能（设备控制）权限。\n您可以在任意应用中选中文本后，点击状态栏菜单「润色选中内容」进行原地地道润色！"
       alert.alertStyle = .informational
       alert.addButton(withTitle: "好的")
     } else {
@@ -235,137 +211,6 @@ class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
     }
   }
 
-  // MARK: - Global Hotkey Listener (Dual-Engine: CGEventTap + NSEvent Monitor)
-  private func setupGlobalHotkeys() {
-    teardownGlobalHotkeys()
-
-    // 引擎 1: CGEventTap (底层内核驱动级按键拦截，灵敏度最高且能精准捕获 fn 与 option)
-    setupEventTap()
-
-    // 引擎 2: NSEvent Monitors (兼容兜底)
-    globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-      self?.handleKeyEvent(event)
-    }
-
-    localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-      if self?.handleKeyEvent(event) == true {
-        return nil
-      }
-      return event
-    }
-  }
-
-  func teardownGlobalHotkeys() {
-    teardownEventTap()
-
-    if let gm = globalMonitor {
-      NSEvent.removeMonitor(gm)
-      globalMonitor = nil
-    }
-    if let lm = localMonitor {
-      NSEvent.removeMonitor(lm)
-      localMonitor = nil
-    }
-  }
-
-  // MARK: - CGEventTap Implementation
-  private func setupEventTap() {
-    teardownEventTap()
-    guard isAccessibilityGranted() else { return }
-
-    let eventMask = (1 << CGEventType.keyDown.rawValue)
-    let observer = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
-
-    guard let tap = CGEvent.tapCreate(
-      tap: .cghidEventTap,
-      place: .headInsertEventTap,
-      options: .defaultTap,
-      eventsOfInterest: CGEventMask(eventMask),
-      callback: { (proxy, type, event, refcon) -> Unmanaged<CGEvent>? in
-        guard let refcon = refcon else { return Unmanaged.passRetained(event) }
-        let manager = Unmanaged<QuickPolishManager>.fromOpaque(refcon).takeUnretainedValue()
-
-        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-          manager.reEnableTap()
-          return Unmanaged.passRetained(event)
-        }
-
-        if manager.handleCGEvent(event) {
-          return nil // 消费该事件，不继续注入当前获得焦点的输入框
-        }
-        return Unmanaged.passRetained(event)
-      },
-      userInfo: observer
-    ) else {
-      NSLog("[OtterJot] Failed to create CGEventTap")
-      return
-    }
-
-    eventTap = tap
-    runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-    CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-    CGEvent.tapEnable(tap: tap, enable: true)
-  }
-
-  func reEnableTap() {
-    if let tap = eventTap {
-      CGEvent.tapEnable(tap: tap, enable: true)
-    }
-  }
-
-  func teardownEventTap() {
-    if let tap = eventTap {
-      CGEvent.tapEnable(tap: tap, enable: false)
-      if let source = runLoopSource {
-        CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
-        runLoopSource = nil
-      }
-      CFMachPortInvalidate(tap)
-      eventTap = nil
-    }
-  }
-
-  func handleCGEvent(_ event: CGEvent) -> Bool {
-    guard isEnabled else { return false }
-    let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-    let flags = event.flags
-
-    // 空格键 keyCode 为 49
-    guard keyCode == 49 else { return false }
-
-    let hasFn = flags.contains(.maskSecondaryFn)
-    let hasOption = flags.contains(.maskAlternate)
-    let hasCommand = flags.contains(.maskCommand)
-    let hasControl = flags.contains(.maskControl)
-
-    // 匹配 fn + 空格 或 ⌥ (Option) + 空格，排除 Cmd/Ctrl
-    if (hasFn || hasOption) && !hasCommand && !hasControl {
-      DispatchQueue.main.async { [weak self] in
-        self?.triggerQuickPolish()
-      }
-      return true
-    }
-    return false
-  }
-
-  @discardableResult
-  private func handleKeyEvent(_ event: NSEvent) -> Bool {
-    guard isEnabled else { return false }
-    let isFunction = event.modifierFlags.contains(.function)
-    let isOption = event.modifierFlags.contains(.option)
-    let isCommand = event.modifierFlags.contains(.command)
-    let isControl = event.modifierFlags.contains(.control)
-
-    // 主快捷键: fn + 空格 (keyCode 49); 同时兼容外接键盘的 ⌥ + 空格
-    if (isFunction || isOption) && !isCommand && !isControl {
-      if event.keyCode == 49 {
-        triggerQuickPolish()
-        return true
-      }
-    }
-    return false
-  }
-
   // MARK: - Text Extraction and In-Place Replacement
   @objc func triggerQuickPolishFromMenu() {
     // 1. 若有记录到的外部前台应用（如 Chrome、微信等），立刻将输入焦点归还给它
@@ -379,29 +224,11 @@ class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
     }
   }
 
-  @objc func triggerQuickPolish() {
-    guard isEnabled else {
-      postNotification(
-        title: "OtterJot 提示",
-        body: "全局快捷润色尚未开启，请在 OtterJot 设置中开启。",
-        systemIcon: "exclamationmark.triangle.fill"
-      )
-      NSSound.beep()
-      return
-    }
-
-    // 延时 0.15 秒，等待用户物理手指从 Fn / Option 组合键上松开，避免按键事件掩码冲突
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
-      guard let self = self else { return }
-      self.extractAndPolish()
-    }
-  }
-
   private func extractAndPolish() {
     guard isEnabled else {
       postNotification(
         title: "OtterJot 提示",
-        body: "全局快捷润色尚未开启，请在 OtterJot 设置中开启。",
+        body: "快捷润色尚未开启，请在 OtterJot 设置中开启。",
         systemIcon: "exclamationmark.triangle.fill"
       )
       NSSound.beep()

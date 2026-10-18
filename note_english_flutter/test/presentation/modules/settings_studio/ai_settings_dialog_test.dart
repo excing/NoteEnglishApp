@@ -94,7 +94,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('全局快捷润色 (fn + 空格)'), findsOneWidget);
+      expect(find.text('状态栏快捷润色'), findsOneWidget);
       expect(find.byKey(const ValueKey('quick_polish_switch')), findsOneWidget);
       expect(find.textContaining('辅助功能已授权，快捷润色随时就绪'), findsOneWidget);
 

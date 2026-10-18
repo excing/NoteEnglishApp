@@ -326,7 +326,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
                             Icon(Icons.bolt, size: 20, color: tokens.terracotta),
                             const SizedBox(width: 6),
                             Text(
-                              '全局快捷润色 (fn + 空格)',
+                              '状态栏快捷润色',
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
@@ -337,7 +337,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '常驻桌面菜单栏，选中文本按下快捷键即可原地重塑为地道英文并自动沉淀语料。',
+                          '常驻桌面菜单栏，选中文本点击状态栏菜单即可原地重塑为地道英文并自动沉淀语料。',
                           style: TextStyle(fontSize: 12, color: tokens.textMuted),
                         ),
                       ],
@@ -387,7 +387,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '辅助功能已授权，快捷润色随时就绪 (fn + 空格 / ⌥ + 空格)',
+              '辅助功能已授权，快捷润色随时就绪',
               style: TextStyle(
                 fontSize: 12,
                 color: tokens.textPrimary,
@@ -445,7 +445,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
           ),
           const SizedBox(height: 8),
           Text(
-            '为了在任意第三方应用（如微信、Slack、浏览器）的输入框中模拟快捷键抓取选中文本并原地回填地道英文，macOS 要求授予 OtterJot 辅助功能权限。',
+            '为了在任意第三方应用（如微信、Slack、浏览器）的输入框中自动提取选中文本并原地回填地道英文，macOS 要求授予 OtterJot 辅助功能权限。',
             style: TextStyle(fontSize: 12, color: tokens.textMuted, height: 1.4),
           ),
           const SizedBox(height: 10),
@@ -455,7 +455,7 @@ class _AiSettingsDialogState extends State<AiSettingsDialog> {
           const SizedBox(height: 4),
           _buildGuideStep('3', '【关键】macOS 系统机制要求：授权后通常需要「退出并重启应用」，系统内核权限方可生效；', tokens),
           const SizedBox(height: 4),
-          _buildGuideStep('4', '完成设置后点击下方「退出并重启 OtterJot」即可全面就绪；如暂不重启，也可先通过常规复制选中文本，按快捷键润色（剪贴板平滑降级模式）。', tokens),
+          _buildGuideStep('4', '完成设置后点击下方「退出并重启 OtterJot」即可全面就绪；如暂不重启，也可先通过常规复制选中文本，再点击状态栏菜单润色（剪贴板平滑降级模式）。', tokens),
           const SizedBox(height: 14),
           Wrap(
             spacing: 10,
