@@ -1,35 +1,37 @@
-## OtterJot (NoteEnglish) v0.0.4 发布说明
+## OtterJot (NoteEnglish) v0.0.5 发布说明
 
-欢迎使用 **OtterJot v0.0.4**！本次版本带来了重大体验升级 —— **开箱即用的免密 AI 服务预设支持**，同时重构了 AI 服务提供商体系，让新用户无需配置繁琐的 API Key 即可即刻开始地道英语写作与全局划词润色。
+欢迎使用 **OtterJot v0.0.5**！本次版本带来了重磅的 **深度思考模式（Deep Thinking）**、**上下文追问交互全流程进化** 以及 **领域核心服务统一重构**，在智能化程度、交互流畅性与工程架构稳固性上迈上了全新的台阶。
 
 ---
 
 ### 🚀 新增功能与核心亮点 (New Features & Highlights)
 
-#### 1. 开箱即用：内置 OVHcloud AI 免密大模型服务 (Keyless Out-of-the-Box AI)
-- **免 API Key 极速体验**：默认预设接入 **OVHcloud AI 官方开放端点** 并预设 **`Qwen3.8-27B`** 大模型。
-- **零门槛上手**：新下载安装的用户无需注册任何账号或绑定信用卡，打开软件即可直接体验水獭主编的 5 大结构化分析、地道重塑以及 macOS 全局划词润色功能。
+#### 1. 🧠 深度思考模式与思维链提取展示 (Deep Thinking Mode)
+- **大模型思考过程可视化**：支持在 AI 设置中开启「深度思考模式」，主编分析面板以温润琥珀色（Warm Amber）折叠卡片形式展现 AI 思考推理过程，从母语心理思维桥梁到地道语感重塑的推导路径一目了然。
+- **广泛协议兼容与自适应降级**：网关层适配 OpenAI / DeepSeek / Claude 标准思维协议参数（`thinking`、`reasoning_effort`、`enable_thinking`），并在第三方端点不支持时自动降级重试，兼顾兼容性与稳定性。
+- **双模解析保障**：同时支持 API 原生 `reasoning_content` 与结构化 JSON 思维链提取。
 
-#### 2. 内置 AI 服务商单一信源与智能切换 (Built-in AI Service Providers)
-- **多服务商预设**：AI 设置面板新增「内置可选 AI 服务 / 预设服务商」下拉选择器，涵盖：
-  - **OVHcloud AI (免 API Key)**：自带绿色「免Key」徽章，默认选用 `Qwen3.8-27B`，并预置 LLaMA 3.1 70B、Mistral 7B 等开源模型；
-  - **OpenAI 官方**：预设 `https://api.openai.com/v1` 与 `gpt-4o`、`gpt-4o-mini` 等模型；
-  - **DeepSeek 官方**：预设 `https://api.deepseek.com/v1` 与 `deepseek-chat`、`deepseek-reasoner`；
-  - **自定义 (OpenAI 兼容协议)**：支持任意中转或自建网关。
-- **智能联动填充**：切换预设服务商时自动联动 Base URL、推荐默认模型，并自适应调整 API Key 的必填提示（免密服务提示「API Key (免密可选)」，可直接留空）。
+#### 2. 💬 上下文追问交互全流程进化 (Optimistic Inquiry Flow)
+- **乐观即时上屏**：发送追问后，用户提问瞬间上屏呈现，告别白屏等待。
+- **独立思考加载动效**：追问卡片带有微光动态指示，思考状态优雅呈现。
+- **就地重试与草稿恢复保护**：若因网络抖动或 API 配额导致追问失败，提供直接就地「重试追问」及「恢复草稿」至输入框机制，彻底杜绝灵感与提问文字意外丢失。
+
+#### 3. 🌐 用户母语偏好个性化定制 (Customizable User Native Language)
+- **专属母语桥梁**：新增母语偏好配置（中文、英语、日语、韩语、德语、法语等），AI 批改与思维桥梁分析自动针对用户的母语进行针对性地道对比与文化视角解构。
 
 ---
 
-### 💎 改进与优化 (Improvements & Fixes)
+### 💎 架构重构与优化 (Architecture & Refactoring)
 
-1. **防腐层协议适配（免密请求头过滤）**：
-   - 适配免密开放端点与私有内网端点，当 API Key 留空时不发送 `Authorization: Bearer` 请求头，彻底解决无效/空 Token 引发的 HTTP 401/400 校验异常。
-2. **AI 配置聚合根状态判定优化**：
-   - 根据选中的服务商类型动态判定 `isApiKeyRequired` 与 `isConfigured`，免密服务无需输入密钥即判定为已就绪。
-3. **macOS 全局快捷润色稳定性维护**：
-   - 优化 `QuickPolishManager` 析构流程，规范系统状态栏常驻项的释放逻辑。
-4. **测试套件与代码规范 100% 达成**：
-   - 全面覆盖服务商单一信源解析测试、免密网关请求头断言测试与 UI 切换交互测试，全量 150 项自动化测试全绿，代码静态分析 0 警告 0 错误。
+1. **核心领域架构统一重构 (DDD Single Source of Truth)**：
+   - 抽象全新核心领域服务 `EditorialAnalysisService` 与执行模型 `EditorialExecutionResult`，将文本预检、AI 鉴权、地理位置与实时天气预检补齐、Prompt 装配、随笔持久化存盘及高价值生活语料沉淀完整收拢为单一信源链路。
+   - 应用内「呼叫水獭主编」与 macOS 状态栏「全局划词润色」全面复用统一主编生命周期，彻底废除冗余老旧的独立链路。
+2. **地理位置与天气预报高可用容错 (Weather Resilience)**：
+   - 基于 FreeIPAPI 实现无感知精确定位当前城市并拉取天气，在离线或公共接口波动时平滑降级至默认安全坐标，保证写作体验不中断。
+3. **视觉层次与字体字阶精修 (App Typography)**：
+   - 重塑全局字阶规范（`AppTypography`），大幅增强了标题、正文文本以及微注释之间的视觉节奏与阅读舒适感。
+4. **全量自动化测试与工程质量保证**：
+   - 测试套件全量扩充（涵盖 `EditorialAnalysisService`、天气网关、母语解析、思维链、追问状态机及 UI 组件），全量测试 100% 通过，代码静态分析 0 警告 0 错误。
 
 ---
 
