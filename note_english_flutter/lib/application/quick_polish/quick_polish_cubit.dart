@@ -1,7 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:note_english_flutter/application/quick_polish/quick_polish_state.dart';
 import 'package:note_english_flutter/domain/gateways/quick_polish_platform_gateway.dart';
-import 'package:note_english_flutter/domain/services/quick_polish_service.dart';
+import 'package:note_english_flutter/domain/models/corpus/corpus_source.dart';
+import 'package:note_english_flutter/domain/services/editorial_analysis_service.dart';
 import 'package:note_english_flutter/infrastructure/storage/file_storage_engine.dart';
 
 /// 全局快捷润色业务状态管理 (Application Cubit)
@@ -9,15 +10,15 @@ class QuickPolishCubit extends Cubit<QuickPolishState> {
   static const String _storageKeyEnabled = 'quick_polish_enabled';
 
   final IQuickPolishPlatformGateway _platformGateway;
-  final QuickPolishService _quickPolishService;
+  final EditorialAnalysisService _editorialAnalysisService;
   final IStorageEngine? _storageEngine;
 
   QuickPolishCubit({
     required IQuickPolishPlatformGateway platformGateway,
-    required QuickPolishService quickPolishService,
+    required EditorialAnalysisService editorialAnalysisService,
     IStorageEngine? storageEngine,
   })  : _platformGateway = platformGateway,
-        _quickPolishService = quickPolishService,
+        _editorialAnalysisService = editorialAnalysisService,
         _storageEngine = storageEngine,
         super(const QuickPolishState()) {
     _platformGateway.setQuickPolishHandler(_handleQuickPolishRequest);
@@ -96,7 +97,10 @@ class QuickPolishCubit extends Cubit<QuickPolishState> {
     ));
 
     try {
-      final result = await _quickPolishService.executeQuickPolish(selectedText);
+      final result = await _editorialAnalysisService.executeAnalysis(
+        rawText: selectedText,
+        sourceType: CorpusSourceType.quickPolish,
+      );
 
       emit(state.copyWith(
         status: QuickPolishStatus.success,
@@ -104,8 +108,8 @@ class QuickPolishCubit extends Cubit<QuickPolishState> {
       ));
 
       // 若有新沉淀的语料，提示用户
-      final corpusMsg = result.extractedCorpus.isNotEmpty
-          ? ' (已沉淀 ${result.extractedCorpus.length} 条生动语料)'
+      final corpusMsg = result.analysisResult.extractedCorpus.isNotEmpty
+          ? ' (已沉淀 ${result.analysisResult.extractedCorpus.length} 条生动语料)'
           : '';
 
       await _platformGateway.showNotification(

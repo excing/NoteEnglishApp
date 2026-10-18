@@ -56,7 +56,7 @@ JSON 必须严格遵循以下结构规范：
   "$keyOriginalStyleVersion": "完全保留作者随笔本真口吻、情感色彩与语气的英文自然版本",
   "$keyUnnaturalExpressions": [
     {
-      "original": "语法没错但不地道/${stylePrefix}式思维的表述",
+      "original": "语法没错但不地道/$stylePrefix式思维的表述",
       "naturalAlternative": "地道母语者口吻的表达方式",
       "mindsetBridge": "思维桥梁：剖析$userLanguage母语思维与英文母语思维的转换逻辑"
     }
@@ -75,9 +75,6 @@ JSON 必须严格遵循以下结构规范：
   }
 
   static String get diaryAnalysisSchemaInstruction => getDiaryAnalysisSchemaInstruction();
-
-  // ================= 快捷快速润色结构化字段键名 =================
-  static const String keyQuickPolishedText = 'polishedText';
 
   // ================= 追问的不可篡改系统底座协议 =================
   static String getInquirySchemaInstruction([String userLanguage = '中文']) => '''
@@ -103,24 +100,4 @@ JSON 必须严格遵循以下结构规范：
 ''';
 
   static String get inquirySchemaInstruction => getInquirySchemaInstruction();
-
-  // ================= 快捷快速润色不可篡改系统底座协议 =================
-  static String getQuickPolishSchemaInstruction([String userLanguage = '中文']) => '''
-【重要约束：快捷润色输出格式协议】
-你必须且只能返回纯 JSON 对象，严禁包含任何 Markdown 格式代码块围栏（如 ```json），严禁输出任何多余的解释文字。
-JSON 必须严格遵循以下结构规范：
-{
-  "$keyQuickPolishedText": "重塑后的纯正、地道母语级英文文本（直接用于替换用户选中的输入内容，保持原意但词句更加生动自然，严禁带有多余引号或前缀解释）",
-  "$keyExtractedCorpus": [
-    {
-      "$keyCorpusExpression": "本次润色中运用的高价值地道表达或词汇 (若无则为空数组 [])",
-      "$keyCorpusPhonetic": "国际音标",
-      "$keyCorpusMeaning": "精准$userLanguage释义",
-      "$keyCorpusUsageContext": "用法简析"
-    }
-  ]
-}
-''';
-
-  static String get quickPolishSchemaInstruction => getQuickPolishSchemaInstruction();
 }

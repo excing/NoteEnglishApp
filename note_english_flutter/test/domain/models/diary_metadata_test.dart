@@ -52,5 +52,16 @@ void main() {
       expect(deserialized.isDay, isNull);
       expect(deserialized.weatherIcon, '☀️'); // 默认日间
     });
+
+    test('hasRealtimeWeather reflects whether temperature has been obtained', () {
+      final withoutWeather = DiaryMetadata(recordedAt: DateTime.now());
+      expect(withoutWeather.hasRealtimeWeather, isFalse);
+
+      final withWeather = DiaryMetadata(
+        recordedAt: DateTime.now(),
+        temperature: 22.0,
+      );
+      expect(withWeather.hasRealtimeWeather, isTrue);
+    });
   });
 }

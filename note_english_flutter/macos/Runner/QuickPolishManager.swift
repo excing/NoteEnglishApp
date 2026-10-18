@@ -284,7 +284,7 @@ class QuickPolishManager: NSObject, UNUserNotificationCenterDelegate {
 
       guard let validText = textToPolish, !validText.isEmpty else { return }
 
-      // 3. 调用 Flutter 领域的 QuickPolishService 进行母语级重塑与日记落库
+      // 3. 调用 Flutter 领域的 EditorialAnalysisService 进行母语级重塑与日记落库
       self.methodChannel?.invokeMethod("performQuickPolish", arguments: ["selectedText": validText]) { [weak self] response in
         guard let self = self else { return }
         guard let dict = response as? [String: Any],

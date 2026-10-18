@@ -4,26 +4,33 @@ import 'package:note_english_flutter/application/quick_polish/quick_polish_cubit
 import 'package:note_english_flutter/application/quick_polish/quick_polish_state.dart';
 import 'package:note_english_flutter/domain/errors/ai_failure.dart';
 import 'package:note_english_flutter/domain/gateways/quick_polish_platform_gateway.dart';
-import 'package:note_english_flutter/domain/models/quick_polish/quick_polish_result.dart';
-import 'package:note_english_flutter/domain/services/quick_polish_service.dart';
-
+import 'package:note_english_flutter/domain/models/analysis/diary_analysis_result.dart';
+import 'package:note_english_flutter/domain/models/analysis/editorial_execution_result.dart';
+import 'package:note_english_flutter/domain/models/corpus/corpus_source.dart';
+import 'package:note_english_flutter/domain/models/diary/diary_entry.dart';
+import 'package:note_english_flutter/domain/models/diary/diary_metadata.dart';
+import 'package:note_english_flutter/domain/services/editorial_analysis_service.dart';
 import 'package:note_english_flutter/infrastructure/storage/file_storage_engine.dart';
 
 class MockQuickPolishPlatformGateway extends Mock implements IQuickPolishPlatformGateway {}
-class MockQuickPolishService extends Mock implements QuickPolishService {}
+class MockEditorialAnalysisService extends Mock implements EditorialAnalysisService {}
 class MockStorageEngine extends Mock implements IStorageEngine {}
 
 void main() {
-  group('QuickPolishCubit Tests (TDD)', () {
+  setUpAll(() {
+    registerFallbackValue(CorpusSourceType.quickPolish);
+  });
+
+  group('QuickPolishCubit Tests (TDD - Unified EditorialAnalysisService)', () {
     late MockQuickPolishPlatformGateway mockGateway;
-    late MockQuickPolishService mockService;
+    late MockEditorialAnalysisService mockService;
     late MockStorageEngine mockStorage;
     late QuickPolishCubit cubit;
     late QuickPolishTextHandler capturedHandler;
 
     setUp(() {
       mockGateway = MockQuickPolishPlatformGateway();
-      mockService = MockQuickPolishService();
+      mockService = MockEditorialAnalysisService();
       mockStorage = MockStorageEngine();
 
       when(() => mockGateway.setQuickPolishHandler(any())).thenAnswer((invocation) {
@@ -43,7 +50,7 @@ void main() {
 
       cubit = QuickPolishCubit(
         platformGateway: mockGateway,
-        quickPolishService: mockService,
+        editorialAnalysisService: mockService,
         storageEngine: mockStorage,
       );
     });
@@ -91,24 +98,24 @@ void main() {
       // When disabled, handling request should immediately return original text without calling service
       final returned = await capturedHandler('hello world');
       expect(returned, 'hello world');
-      verifyNever(() => mockService.executeQuickPolish(any()));
+      verifyNever(() => mockService.executeAnalysis(
+            rawText: any(named: 'rawText'),
+            sourceType: any(named: 'sourceType'),
+          ));
     });
 
     test('toggleEnabled(true) persists and actively triggers accessibility check', () async {
-      // 先关闭
       await cubit.toggleEnabled(false);
       reset(mockGateway);
       when(() => mockGateway.setQuickPolishEnabled(any())).thenAnswer((_) async {});
       when(() => mockGateway.isAccessibilityGranted()).thenAnswer((_) async => false);
 
-      // 重新开启
       await cubit.toggleEnabled(true);
 
       expect(cubit.state.isEnabled, isTrue);
       expect(cubit.state.isAccessibilityGranted, isFalse);
       verify(() => mockStorage.writeString('quick_polish_enabled', 'true')).called(1);
       verify(() => mockGateway.setQuickPolishEnabled(true)).called(1);
-      // 主动检测相关权限
       verify(() => mockGateway.isAccessibilityGranted()).called(1);
     });
 
@@ -125,11 +132,21 @@ void main() {
 
     test('successful polish transitions through processing to success and returns polished text', () async {
       await cubit.toggleEnabled(true);
-      const mockResult = QuickPolishResult(
-        originalText: '今天下雨',
-        polishedText: 'It is pouring rain today.',
+      final mockResult = EditorialExecutionResult(
+        entry: DiaryEntry.create(
+          content: '今天下雨',
+          metadata: DiaryMetadata(recordedAt: DateTime.now()),
+        ),
+        analysisResult: const DiaryAnalysisResult(
+          originalStyleEnglishVersion: 'It rains today.',
+          authenticAdvancedVersion: 'It is pouring rain today.',
+          extractedCorpus: [],
+        ),
       );
-      when(() => mockService.executeQuickPolish('今天下雨')).thenAnswer((_) async => mockResult);
+      when(() => mockService.executeAnalysis(
+            rawText: '今天下雨',
+            sourceType: CorpusSourceType.quickPolish,
+          )).thenAnswer((_) async => mockResult);
 
       final returnedText = await capturedHandler('今天下雨');
 
@@ -144,7 +161,10 @@ void main() {
 
     test('failure during polish transitions to failure and safely returns original text', () async {
       await cubit.toggleEnabled(true);
-      when(() => mockService.executeQuickPolish('测试文本')).thenThrow(
+      when(() => mockService.executeAnalysis(
+            rawText: '测试文本',
+            sourceType: CorpusSourceType.quickPolish,
+          )).thenThrow(
         const AiConfigNotSetFailure('API Key 未设置'),
       );
 

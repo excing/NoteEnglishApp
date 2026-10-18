@@ -18,7 +18,7 @@ import 'package:note_english_flutter/domain/models/diary/weather_condition.dart'
 import 'package:note_english_flutter/domain/repositories/ai_config_repository.dart';
 import 'package:note_english_flutter/domain/repositories/corpus_repository.dart';
 import 'package:note_english_flutter/domain/repositories/diary_repository.dart';
-import 'package:note_english_flutter/domain/services/quick_polish_service.dart';
+import 'package:note_english_flutter/domain/services/editorial_analysis_service.dart';
 import 'package:note_english_flutter/infrastructure/gateways/method_channel_quick_polish_platform_gateway.dart';
 import 'package:note_english_flutter/presentation/modules/writing_studio/writing_studio_page.dart';
 
@@ -127,14 +127,15 @@ class NoteEnglishApp extends StatelessWidget {
               platformGateway: sl.isRegistered<IQuickPolishPlatformGateway>()
                   ? sl<IQuickPolishPlatformGateway>()
                   : MethodChannelQuickPolishPlatformGateway(),
-              quickPolishService: sl.isRegistered<QuickPolishService>()
-                  ? sl<QuickPolishService>()
-                  : QuickPolishService(
+              editorialAnalysisService: sl.isRegistered<EditorialAnalysisService>()
+                  ? sl<EditorialAnalysisService>()
+                  : EditorialAnalysisService(
                       aiGateway: sl<IAiGateway>(),
                       configRepository: sl<IAiConfigRepository>(),
                       corpusRepository: sl<ICorpusRepository>(),
-                      diaryRepository: sl.isRegistered<IDiaryRepository>()
-                          ? sl<IDiaryRepository>()
+                      diaryRepository: sl<IDiaryRepository>(),
+                      weatherGateway: sl.isRegistered<IWeatherGateway>()
+                          ? sl<IWeatherGateway>()
                           : null,
                     ),
             ),

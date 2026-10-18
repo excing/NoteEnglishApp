@@ -79,14 +79,14 @@ void main() {
         userLanguage: '法文',
       );
 
-      final bundle = customEngine.buildQuickPolishPromptBundle(
-        selectedText: 'Je voudrais commander un café.',
+      final bundle = customEngine.buildAnalysisPromptBundle(
+        metadata: DiaryMetadata(recordedAt: DateTime.now()),
+        diaryContent: 'Je voudrais commander un café.',
       );
 
       expect(bundle.systemPrompt, contains('精准法文释义'));
       expect(bundle.systemPrompt, isNot(contains('【用户环境】')));
-      expect(bundle.userMessage, contains('若内容为法文'));
-      expect(bundle.userMessage, contains('消除法式英文与生硬表达'));
+      expect(bundle.systemPrompt, contains('剖析法文母语思维'));
     });
 
     test('dynamically adapts inquiry prompt to target system locale via in-place replacement', () {

@@ -1,11 +1,11 @@
 import 'package:equatable/equatable.dart';
-import 'package:note_english_flutter/domain/models/quick_polish/quick_polish_result.dart';
+import 'package:note_english_flutter/domain/models/analysis/editorial_execution_result.dart';
 
 enum QuickPolishStatus { idle, processing, success, failure }
 
 class QuickPolishState extends Equatable {
   final QuickPolishStatus status;
-  final QuickPolishResult? lastResult;
+  final EditorialExecutionResult? lastResult;
   final String? errorMessage;
   final bool isAccessibilityGranted;
   final bool isEnabled;
@@ -20,7 +20,7 @@ class QuickPolishState extends Equatable {
 
   QuickPolishState copyWith({
     QuickPolishStatus? status,
-    QuickPolishResult? lastResult,
+    EditorialExecutionResult? lastResult,
     String? errorMessage,
     bool? isAccessibilityGranted,
     bool? isEnabled,

@@ -28,6 +28,9 @@ class DiaryMetadata extends Equatable {
   /// 动态昼夜天气图标 (未指定昼夜时默认日间)
   String get weatherIcon => weather.getIcon(isDay: isDay ?? true);
 
+  /// 是否已获取真实实时天气数据 (气温已取得)
+  bool get hasRealtimeWeather => temperature != null;
+
   DiaryMetadata copyWith({
     DateTime? recordedAt,
     WeatherCondition? weather,

@@ -404,10 +404,13 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
   }
 
   void _handleEntryCreated(DiaryEntry created) {
-    context.read<DiaryEditorialCubit>().loadEntry(created);
+    final editorialCubit = context.read<DiaryEditorialCubit>();
+    editorialCubit.loadEntry(created);
     context.read<InquiryCubit>().resetHistory([]);
     context.read<DiaryListCubit>().setActiveEntryId(created.id);
     _focusNode.requestFocus();
+    // 用户新建随笔时，根据位置实时静默刷新天气
+    editorialCubit.fetchAndApplyRealtimeWeather(silentOnError: true);
   }
 
   Future<void> _handleEntryDeleted(String deletedId) async {
@@ -428,6 +431,7 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
         editorialCubit.loadEntry(fresh);
         inquiryCubit.resetHistory([]);
         listCubit.setActiveEntryId(fresh.id);
+        editorialCubit.fetchAndApplyRealtimeWeather(silentOnError: true);
       }
     }
   }

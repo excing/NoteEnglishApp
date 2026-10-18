@@ -11,7 +11,7 @@ import 'package:note_english_flutter/infrastructure/adapters/ai/openai_compatibl
 import 'package:note_english_flutter/infrastructure/adapters/weather/open_meteo_weather_gateway.dart';
 import 'package:note_english_flutter/application/quick_polish/quick_polish_cubit.dart';
 import 'package:note_english_flutter/domain/gateways/quick_polish_platform_gateway.dart';
-import 'package:note_english_flutter/domain/services/quick_polish_service.dart';
+import 'package:note_english_flutter/domain/services/editorial_analysis_service.dart';
 import 'package:note_english_flutter/infrastructure/gateways/method_channel_quick_polish_platform_gateway.dart';
 import 'package:note_english_flutter/infrastructure/repositories/local_corpus_repository.dart';
 import 'package:note_english_flutter/infrastructure/repositories/local_diary_repository.dart';
@@ -51,13 +51,14 @@ Future<void> setupServiceLocator({IStorageEngine? customStorageEngine}) async {
     ),
   );
 
-  // 4. 快捷润色领域服务与 Cubit
-  sl.registerLazySingleton<QuickPolishService>(
-    () => QuickPolishService(
+  // 4. 统一主编深度梳理与快捷润色领域服务与 Cubit (Single Source of Truth)
+  sl.registerLazySingleton<EditorialAnalysisService>(
+    () => EditorialAnalysisService(
       aiGateway: sl<IAiGateway>(),
       configRepository: sl<IAiConfigRepository>(),
       corpusRepository: sl<ICorpusRepository>(),
       diaryRepository: sl<IDiaryRepository>(),
+      weatherGateway: sl<IWeatherGateway>(),
       promptTemplateEngine: sl<PromptTemplateEngine>(),
       corpusIngestionService: sl<CorpusIngestionService>(),
     ),
@@ -65,7 +66,7 @@ Future<void> setupServiceLocator({IStorageEngine? customStorageEngine}) async {
   sl.registerLazySingleton<QuickPolishCubit>(
     () => QuickPolishCubit(
       platformGateway: sl<IQuickPolishPlatformGateway>(),
-      quickPolishService: sl<QuickPolishService>(),
+      editorialAnalysisService: sl<EditorialAnalysisService>(),
     ),
   );
 }

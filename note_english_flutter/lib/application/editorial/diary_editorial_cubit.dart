@@ -11,6 +11,7 @@ import 'package:note_english_flutter/domain/repositories/diary_repository.dart';
 import 'package:note_english_flutter/domain/gateways/weather_gateway.dart';
 import 'package:note_english_flutter/domain/models/weather/current_weather_report.dart';
 import 'package:note_english_flutter/domain/services/corpus_ingestion_service.dart';
+import 'package:note_english_flutter/domain/services/editorial_analysis_service.dart';
 import 'package:note_english_flutter/domain/services/prompt_template_engine.dart';
 
 /// 随笔与 AI 梳理状态
@@ -48,12 +49,10 @@ class DiaryEditorialState extends Equatable {
 /// 随笔与 AI 梳理管理 Cubit
 class DiaryEditorialCubit extends Cubit<DiaryEditorialState> {
   final IDiaryRepository _diaryRepository;
-  final ICorpusRepository _corpusRepository;
-  final IAiConfigRepository _configRepository;
-  final IAiGateway _aiGateway;
   final IWeatherGateway? _weatherGateway;
-  final PromptTemplateEngine _promptEngine;
-  final CorpusIngestionService _corpusService;
+  IWeatherGateway? get weatherGateway => _weatherGateway;
+  final EditorialAnalysisService _editorialAnalysisService;
+  EditorialAnalysisService get editorialAnalysisService => _editorialAnalysisService;
 
   /// 用户最后一次手动指定或确认的位置（内存持久化，用于跨随笔或新建随笔时记忆用户常用城市）
   static String? lastUserSelectedLocation;
@@ -66,14 +65,20 @@ class DiaryEditorialCubit extends Cubit<DiaryEditorialState> {
     IWeatherGateway? weatherGateway,
     PromptTemplateEngine promptEngine = const PromptTemplateEngine(),
     CorpusIngestionService corpusService = const CorpusIngestionService(),
+    EditorialAnalysisService? editorialAnalysisService,
     required DiaryEntry initialEntry,
   })  : _diaryRepository = diaryRepository,
-        _corpusRepository = corpusRepository,
-        _configRepository = configRepository,
-        _aiGateway = aiGateway,
         _weatherGateway = weatherGateway,
-        _promptEngine = promptEngine,
-        _corpusService = corpusService,
+        _editorialAnalysisService = editorialAnalysisService ??
+            EditorialAnalysisService(
+              aiGateway: aiGateway,
+              configRepository: configRepository,
+              corpusRepository: corpusRepository,
+              diaryRepository: diaryRepository,
+              weatherGateway: weatherGateway,
+              promptTemplateEngine: promptEngine,
+              corpusIngestionService: corpusService,
+            ),
         super(DiaryEditorialState(
           entry: initialEntry,
           status: initialEntry.status,
@@ -125,7 +130,11 @@ class DiaryEditorialCubit extends Cubit<DiaryEditorialState> {
   /// - 优先继承当前随笔原本已有的 [location]；
   /// - 其次继承用户此前输入/选择过的最后位置 [lastUserSelectedLocation]；
   /// - 仅在完全没有任何已知用户输入位置时，才降级执行全局自动定位/默认城市。
-  Future<void> fetchAndApplyRealtimeWeather({String? cityName}) async {
+  /// [silentOnError] 为 true 时，如果获取天气失败将静默处理，不发射 errorMessage。
+  Future<void> fetchAndApplyRealtimeWeather({
+    String? cityName,
+    bool silentOnError = false,
+  }) async {
     if (_weatherGateway == null) return;
     try {
       final effectiveCity = cityName?.trim().isNotEmpty == true
@@ -157,11 +166,13 @@ class DiaryEditorialCubit extends Cubit<DiaryEditorialState> {
       emit(state.copyWith(entry: updated, errorMessage: null));
       await _diaryRepository.saveEntry(updated);
     } catch (e) {
-      emit(state.copyWith(errorMessage: '获取实时天气失败: $e'));
+      if (!silentOnError) {
+        emit(state.copyWith(errorMessage: '获取实时天气失败: $e'));
+      }
     }
   }
 
-  /// 呼叫主编：发起 AI 梳理
+  /// 呼叫主编：发起 AI 梳理 (委托统一 EditorialAnalysisService 单一信源入口)
   Future<void> requestAiAnalysis() async {
     final content = state.entry.content.trim();
     if (content.isEmpty) {
@@ -172,63 +183,24 @@ class DiaryEditorialCubit extends Cubit<DiaryEditorialState> {
     emit(state.copyWith(status: DiaryAnalysisStatus.analyzing, errorMessage: null));
 
     try {
-      final config = await _configRepository.getConfig();
-      if (!config.isConfigured) {
-        emit(state.copyWith(
-          status: DiaryAnalysisStatus.failed,
-          errorMessage: '尚未配置 AI 接口，请先点击右上角【设置】配置 API Key 与端点',
-        ));
-        return;
-      }
-
-      final promptBundle = _promptEngine.buildAnalysisPromptBundle(
-        metadata: state.entry.metadata,
-        diaryContent: content,
-        customSystemPrompt: config.customSystemPrompt,
+      final result = await _editorialAnalysisService.executeAnalysis(
+        rawText: content,
+        existingEntry: state.entry,
+        cityName: state.entry.metadata.location ?? lastUserSelectedLocation,
+        sourceType: CorpusSourceType.analysis,
       );
-
-      final analysisResult = await _aiGateway.analyzeDiary(
-        promptBundle: promptBundle,
-        config: config,
-      );
-
-      // 语料静默提取：自动存入用户语料库 (UI 不直接展示在主梳理视图)
-      int newCorpusCount = 0;
-      if (analysisResult.extractedCorpus.isNotEmpty) {
-        final existing = await _corpusRepository.getExistingExpressions();
-        final corpusSource = CorpusSource(
-          diaryId: state.entry.id,
-          sourceSnippet: content.length > 60
-              ? '${content.substring(0, 60)}...'
-              : content,
-          sourceType: CorpusSourceType.analysis,
-          createdAt: DateTime.now(),
-        );
-
-        final items = _corpusService.ingestDrafts(
-          drafts: analysisResult.extractedCorpus,
-          source: corpusSource,
-          existingExpressions: existing,
-        );
-
-        if (items.isNotEmpty) {
-          await _corpusRepository.saveBatch(items);
-          newCorpusCount = items.length;
-        }
-      }
-
-      final completedEntry = state.entry.withAnalysisResult(analysisResult);
-      await _diaryRepository.saveEntry(completedEntry);
 
       emit(state.copyWith(
-        entry: completedEntry,
+        entry: result.entry,
         status: DiaryAnalysisStatus.completed,
-        silentCorpusCount: newCorpusCount,
+        silentCorpusCount: result.silentCorpusCount,
       ));
     } catch (e) {
       emit(state.copyWith(
         status: DiaryAnalysisStatus.failed,
-        errorMessage: e is AiFailure ? e.message : '主编梳理失败: $e',
+        errorMessage: e is AiFailure
+            ? e.message
+            : (e is FormatException ? e.message : '主编梳理失败: $e'),
       ));
     }
   }

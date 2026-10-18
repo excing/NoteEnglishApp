@@ -5,7 +5,6 @@ import 'package:note_english_flutter/domain/models/analysis/diary_analysis_resul
 import 'package:note_english_flutter/domain/models/config/ai_model_descriptor.dart';
 import 'package:note_english_flutter/domain/models/config/ai_profile_config.dart';
 import 'package:note_english_flutter/domain/models/inquiry/inquiry_response.dart';
-import 'package:note_english_flutter/domain/models/quick_polish/quick_polish_result.dart';
 import 'package:note_english_flutter/domain/services/prompt_template_engine.dart';
 import 'package:note_english_flutter/infrastructure/adapters/ai/robust_json_parser.dart';
 
@@ -56,35 +55,6 @@ class OpenAiCompatibleAiGateway implements IAiGateway {
     } catch (e) {
       throw AiResponseParsingFailure(
         '追问回复解析失败: ${e is FormatException ? e.message : e.toString()}',
-      );
-    }
-  }
-
-  @override
-  Future<QuickPolishResult> quickPolish({
-    required PromptBundle promptBundle,
-    required AiProfileConfig config,
-    required String originalText,
-  }) async {
-    _validateConfig(config);
-
-    final stopwatch = Stopwatch()..start();
-    final rawText = await _sendChatCompletion(
-      promptBundle: promptBundle,
-      config: config,
-    );
-    stopwatch.stop();
-
-    try {
-      final jsonMap = RobustJsonParser.cleanAndParse(rawText);
-      return QuickPolishResult.fromJson(
-        json: jsonMap,
-        originalText: originalText,
-        durationMs: stopwatch.elapsedMilliseconds,
-      );
-    } catch (e) {
-      throw AiResponseParsingFailure(
-        '快捷润色结果解析失败: ${e is FormatException ? e.message : e.toString()}',
       );
     }
   }

@@ -15,6 +15,7 @@ import 'package:note_english_flutter/infrastructure/repositories/local_corpus_re
 import 'package:note_english_flutter/infrastructure/repositories/local_diary_repository.dart';
 import 'package:note_english_flutter/infrastructure/repositories/secure_ai_config_repository.dart';
 import 'package:note_english_flutter/domain/gateways/weather_gateway.dart';
+import 'package:note_english_flutter/domain/models/weather/current_weather_report.dart';
 import 'package:note_english_flutter/main.dart';
 
 class MockAiGateway extends Mock implements IAiGateway {}
@@ -22,6 +23,7 @@ class MockWeatherGateway extends Mock implements IWeatherGateway {}
 
 void main() {
   late MockAiGateway mockAiGateway;
+  late MockWeatherGateway mockWeatherGateway;
   late IDiaryRepository diaryRepo;
   late ICorpusRepository corpusRepo;
   late IAiConfigRepository configRepo;
@@ -33,6 +35,22 @@ void main() {
 
   setUp(() async {
     mockAiGateway = MockAiGateway();
+    mockWeatherGateway = MockWeatherGateway();
+    when(() => mockWeatherGateway.fetchWeatherAuto()).thenAnswer(
+      (_) async => CurrentWeatherReport(
+        condition: WeatherCondition.sunny,
+        temperature: 25.0,
+        apparentTemperature: 24.5,
+        relativeHumidity: 60,
+        precipitation: 0.0,
+        isDay: true,
+        weatherCode: 0,
+        locationName: 'Beijing',
+        latitude: 39.9,
+        longitude: 116.4,
+        fetchedAt: DateTime.now(),
+      ),
+    );
     diaryRepo = LocalDiaryRepository();
     corpusRepo = LocalCorpusRepository();
     configRepo = SecureAiConfigRepository();
@@ -48,7 +66,7 @@ void main() {
     sl.registerLazySingleton<ICorpusRepository>(() => corpusRepo);
     sl.registerLazySingleton<IAiConfigRepository>(() => configRepo);
     sl.registerLazySingleton<IAiGateway>(() => mockAiGateway);
-    sl.registerLazySingleton<IWeatherGateway>(() => MockWeatherGateway());
+    sl.registerLazySingleton<IWeatherGateway>(() => mockWeatherGateway);
   });
 
   testWidgets(
@@ -145,6 +163,9 @@ void main() {
     expect(inputField, findsOneWidget);
     await tester.enterText(inputField, 'Note 3: Brand new diary entry!');
     await tester.pumpAndSettle();
+
+    // 验证新建笔记时自动根据位置刷新天气
+    verify(() => mockWeatherGateway.fetchWeatherAuto()).called(greaterThanOrEqualTo(1));
 
     // 7. 再次打开抽屉验证总数为 3 篇，并测试删除
     await tester.tap(find.byKey(const ValueKey('diary_drawer_button')));

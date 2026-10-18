@@ -40,6 +40,7 @@ void main() {
   });
 
   setUp(() {
+    DiaryEditorialCubit.lastUserSelectedLocation = null;
     diaryRepo = MockDiaryRepository();
     corpusRepo = MockCorpusRepository();
     configRepo = MockAiConfigRepository();
@@ -326,6 +327,192 @@ void main() {
       ],
       verify: (_) {
         verify(() => diaryRepo.saveEntry(any())).called(1);
+      },
+    );
+
+    blocTest<DiaryEditorialCubit, DiaryEditorialState>(
+      '呼叫主编梳理时，若尚未获取过天气，应自动获取一次实时天气再进行梳理',
+      setUp: () {
+        when(() => configRepo.getConfig()).thenAnswer(
+          (_) async => const AiProfileConfig(apiKey: 'key', baseUrl: 'https://api.test.com'),
+        );
+        when(() => aiGateway.analyzeDiary(
+              promptBundle: any(named: 'promptBundle'),
+              config: any(named: 'config'),
+            )).thenAnswer((_) async => mockAnalysis);
+        when(() => corpusRepo.getExistingExpressions())
+            .thenAnswer((_) async => <String>{});
+        when(() => corpusRepo.saveBatch(any())).thenAnswer((_) async {});
+        when(() => diaryRepo.saveEntry(any())).thenAnswer((_) async {});
+      },
+      build: () {
+        final weatherGateway = MockWeatherGateway();
+        // 随笔初始没有实时天气数据 (temperature == null)
+        final entryWithoutWeather = initialEntry.copyWith(
+          metadata: initialEntry.metadata.copyWith(
+            temperature: null,
+            location: null,
+          ),
+        );
+        when(() => weatherGateway.fetchWeatherAuto()).thenAnswer(
+          (_) async => CurrentWeatherReport(
+            condition: WeatherCondition.thunderstorm,
+            temperature: 28.0,
+            apparentTemperature: 30.0,
+            relativeHumidity: 88,
+            precipitation: 15.0,
+            isDay: true,
+            weatherCode: 95,
+            locationName: 'Guangzhou',
+            latitude: 23.13,
+            longitude: 113.26,
+            fetchedAt: DateTime.now(),
+          ),
+        );
+        return DiaryEditorialCubit(
+          diaryRepository: diaryRepo,
+          corpusRepository: corpusRepo,
+          configRepository: configRepo,
+          aiGateway: aiGateway,
+          weatherGateway: weatherGateway,
+          promptEngine: const PromptTemplateEngine(),
+          corpusService: const CorpusIngestionService(),
+          initialEntry: entryWithoutWeather,
+        );
+      },
+      act: (cubit) => cubit.requestAiAnalysis(),
+      expect: () => [
+        isA<DiaryEditorialState>().having(
+          (s) => s.status,
+          'status',
+          DiaryAnalysisStatus.analyzing,
+        ),
+        // 最终状态：统一服务执行完成后进入 completed，且元数据中包含自动补齐的天气与位置信息
+        isA<DiaryEditorialState>()
+            .having((s) => s.status, 'status', DiaryAnalysisStatus.completed)
+            .having((s) => s.entry.metadata.weather, 'weather', WeatherCondition.thunderstorm)
+            .having((s) => s.entry.metadata.location, 'location', 'Guangzhou')
+            .having((s) => s.entry.metadata.temperature, 'temperature', 28.0),
+      ],
+      verify: (cubit) {
+        verify(() => cubit.weatherGateway?.fetchWeatherAuto()).called(1);
+        verify(() => aiGateway.analyzeDiary(
+              promptBundle: any(
+                named: 'promptBundle',
+                that: isA<PromptBundle>().having(
+                  (p) => p.userMessage,
+                  'userMessage',
+                  contains('Guangzhou'),
+                ),
+              ),
+              config: any(named: 'config'),
+            )).called(1);
+      },
+    );
+
+    blocTest<DiaryEditorialCubit, DiaryEditorialState>(
+      '呼叫主编梳理时，若随笔已获取过实时天气，不应重复请求天气网关',
+      setUp: () {
+        when(() => configRepo.getConfig()).thenAnswer(
+          (_) async => const AiProfileConfig(apiKey: 'key', baseUrl: 'https://api.test.com'),
+        );
+        when(() => aiGateway.analyzeDiary(
+              promptBundle: any(named: 'promptBundle'),
+              config: any(named: 'config'),
+            )).thenAnswer((_) async => mockAnalysis);
+        when(() => corpusRepo.getExistingExpressions())
+            .thenAnswer((_) async => <String>{});
+        when(() => corpusRepo.saveBatch(any())).thenAnswer((_) async {});
+        when(() => diaryRepo.saveEntry(any())).thenAnswer((_) async {});
+      },
+      build: () {
+        final weatherGateway = MockWeatherGateway();
+        // 随笔初始已有实时天气数据 (temperature != null)
+        final entryWithWeather = initialEntry.copyWith(
+          metadata: initialEntry.metadata.copyWith(
+            temperature: 20.0,
+            location: 'Beijing',
+          ),
+        );
+        return DiaryEditorialCubit(
+          diaryRepository: diaryRepo,
+          corpusRepository: corpusRepo,
+          configRepository: configRepo,
+          aiGateway: aiGateway,
+          weatherGateway: weatherGateway,
+          promptEngine: const PromptTemplateEngine(),
+          corpusService: const CorpusIngestionService(),
+          initialEntry: entryWithWeather,
+        );
+      },
+      act: (cubit) => cubit.requestAiAnalysis(),
+      expect: () => [
+        isA<DiaryEditorialState>().having(
+          (s) => s.status,
+          'status',
+          DiaryAnalysisStatus.analyzing,
+        ),
+        isA<DiaryEditorialState>()
+            .having((s) => s.status, 'status', DiaryAnalysisStatus.completed),
+      ],
+      verify: (cubit) {
+        verifyNever(() => cubit.weatherGateway?.fetchWeatherAuto());
+        verifyNever(() => cubit.weatherGateway?.fetchWeatherByCity(any()));
+      },
+    );
+
+    blocTest<DiaryEditorialCubit, DiaryEditorialState>(
+      '呼叫主编梳理时，自动获取天气若失败，应静默降级并不阻断 AI 主编梳理',
+      setUp: () {
+        when(() => configRepo.getConfig()).thenAnswer(
+          (_) async => const AiProfileConfig(apiKey: 'key', baseUrl: 'https://api.test.com'),
+        );
+        when(() => aiGateway.analyzeDiary(
+              promptBundle: any(named: 'promptBundle'),
+              config: any(named: 'config'),
+            )).thenAnswer((_) async => mockAnalysis);
+        when(() => corpusRepo.getExistingExpressions())
+            .thenAnswer((_) async => <String>{});
+        when(() => corpusRepo.saveBatch(any())).thenAnswer((_) async {});
+        when(() => diaryRepo.saveEntry(any())).thenAnswer((_) async {});
+      },
+      build: () {
+        final weatherGateway = MockWeatherGateway();
+        final entryWithoutWeather = initialEntry.copyWith(
+          metadata: initialEntry.metadata.copyWith(
+            temperature: null,
+          ),
+        );
+        when(() => weatherGateway.fetchWeatherAuto())
+            .thenThrow(Exception('Network error during weather fetch'));
+        return DiaryEditorialCubit(
+          diaryRepository: diaryRepo,
+          corpusRepository: corpusRepo,
+          configRepository: configRepo,
+          aiGateway: aiGateway,
+          weatherGateway: weatherGateway,
+          promptEngine: const PromptTemplateEngine(),
+          corpusService: const CorpusIngestionService(),
+          initialEntry: entryWithoutWeather,
+        );
+      },
+      act: (cubit) => cubit.requestAiAnalysis(),
+      expect: () => [
+        isA<DiaryEditorialState>().having(
+          (s) => s.status,
+          'status',
+          DiaryAnalysisStatus.analyzing,
+        ),
+        // 依然顺利完成，状态为 completed
+        isA<DiaryEditorialState>()
+            .having((s) => s.status, 'status', DiaryAnalysisStatus.completed),
+      ],
+      verify: (cubit) {
+        verify(() => cubit.weatherGateway?.fetchWeatherAuto()).called(1);
+        verify(() => aiGateway.analyzeDiary(
+              promptBundle: any(named: 'promptBundle'),
+              config: any(named: 'config'),
+            )).called(1);
       },
     );
   });
