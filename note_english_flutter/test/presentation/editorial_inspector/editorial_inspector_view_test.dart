@@ -364,10 +364,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('thinking_process_card')), findsOneWidget);
-    expect(find.text('主编深度思考心路'), findsOneWidget);
+    final headerFinder = find.text('主编深度思考心路');
+    expect(headerFinder, findsOneWidget);
+    // 折叠状态下，思考过程文本默认不可见 (Offstage)
+    expect(find.textContaining('Step 1: Analyzed metaphor'), findsNothing);
 
-    // 展开查看思考心路内容
-    await tester.tap(find.byKey(const ValueKey('thinking_process_card')));
+    // 展开查看思考心路内容 (点击标题文本确保触发 ListTile onTap 并避免 hitTest 偏移)
+    await tester.ensureVisible(headerFinder);
+    await tester.tap(headerFinder);
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Step 1: Analyzed metaphor'), findsOneWidget);
