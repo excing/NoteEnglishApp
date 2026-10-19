@@ -920,53 +920,56 @@ class _EditorialInspectorViewState extends State<EditorialInspectorView> {
       ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 4),
-        decoration: BoxDecoration(
+        child: Material(
           color: tokens.amber.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: tokens.amber.withValues(alpha: 0.3),
-          ),
-        ),
-        child: ExpansionTile(
-          key: const ValueKey('thinking_process_card'),
-          initiallyExpanded: false,
-          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
-          leading: Icon(
-            Icons.psychology,
-            size: 20,
-            color: tokens.amber,
-          ),
-          title: Text(
-            '主编深度思考心路',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: tokens.textPrimary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: tokens.amber.withValues(alpha: 0.3),
             ),
           ),
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: tokens.card,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: tokens.cardBorder),
-                ),
-                child: Text(
-                  thinkingProcess,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: tokens.textPrimary,
-                    height: 1.6,
-                    fontStyle: FontStyle.italic,
+          clipBehavior: Clip.antiAlias,
+          child: ExpansionTile(
+            key: const ValueKey('thinking_process_card'),
+            initiallyExpanded: false,
+            tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+            leading: Icon(
+              Icons.psychology,
+              size: 20,
+              color: tokens.amber,
+            ),
+            title: Text(
+              '主编深度思考心路',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: tokens.textPrimary,
+              ),
+            ),
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: tokens.card,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: tokens.cardBorder),
+                  ),
+                  child: Text(
+                    thinkingProcess,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: tokens.textPrimary,
+                      height: 1.6,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
