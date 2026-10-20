@@ -182,6 +182,16 @@ void main() {
       expect(find.text('OtterJot'), findsNothing);
       expect(find.byKey(const ValueKey('close_ai_sidebar_button')), findsNothing);
 
+      // 移动端输入形态回归保护：Android 引擎会把 enableSuggestions=false
+      // 映射成 TYPE_TEXT_VARIATION_VISIBLE_PASSWORD，输入法会误判为密码框
+      // 并切换到「安全键盘」，因此这里必须保持联想开启、仅关闭自动纠错。
+      final editorField = tester.widget<TextField>(
+        find.byKey(const ValueKey('diary_input_field')),
+      );
+      expect(editorField.enableSuggestions, isTrue);
+      expect(editorField.autocorrect, isFalse);
+      expect(editorField.keyboardType, TextInputType.multiline);
+
       // 2. 点击左上角呼出侧滑抽屉
       await tester.tap(find.byKey(const ValueKey('diary_drawer_button')));
       await tester.pumpAndSettle();

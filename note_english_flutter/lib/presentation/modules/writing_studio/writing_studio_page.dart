@@ -1152,8 +1152,11 @@ class _WritingStudioPageState extends State<WritingStudioPage> {
       focusNode: _focusNode,
       maxLines: null,
       expands: true,
+      // 只关闭自动纠错以保留中英混排的原样表达；
+      // 切勿设置 enableSuggestions: false —— Android 引擎会把 "关闭联想"
+      // 映射成 TYPE_TEXT_VARIATION_VISIBLE_PASSWORD，输入法会误判为密码框
+      // 并弹出「安全键盘」，导致候选栏消失、中文输入受阻。
       autocorrect: false,
-      enableSuggestions: false,
       keyboardType: TextInputType.multiline,
       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
             color: tokens.textPrimary,
