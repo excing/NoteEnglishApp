@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 必须显式声明联网权限：Flutter 模板只在 debug/profile 变体的清单里声明，
+         而 release 构建不会合并这两份清单，缺少此行会导致 release 包内所有网络请求
+         （Open-Meteo 天气 / IP 定位 / AI 接口）直接抛 SocketException。 -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="OtterJot"
         android:name="${applicationName}"
