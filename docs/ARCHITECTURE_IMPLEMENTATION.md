@@ -42,6 +42,7 @@
   - `CorpusDeckPage`：专属生活语料库。
   - `AiSettingsDialog`：内置可选服务商切换、接口配置、模型获取与状态栏快捷润色设置。
   - `AppThemeTokens`：温润米白浅色与深烘焙深色双主题单一信源。
+  - `AppDeviceOrientation`：移动端设备屏幕方向锁定单一信源，锁定竖屏 (PortraitUp)，防止手持旋转误切横屏。
 
 ---
 
@@ -52,6 +53,8 @@
 4. `test/infrastructure/adapters/openai_compatible_ai_gateway_test.dart`：验证第三方 API 契约与模型列表拉取。
 5. `test/application/editorial/diary_editorial_cubit_test.dart`：验证梳理全流程与语料自动入库数据流。
 6. `test/widget_test.dart`：验证主界面组件树正常挂载。
+7. `test/core/device/app_device_orientation_test.dart`：验证移动端首选屏幕方向单一信源定义及系统通道调用。
+8. `test/core/device/platform_orientation_config_test.dart`：验证 iOS Info.plist 与 Android AndroidManifest.xml 移动端固定竖屏契约。
 
 ---
 

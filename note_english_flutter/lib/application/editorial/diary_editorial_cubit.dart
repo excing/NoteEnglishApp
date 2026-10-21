@@ -145,10 +145,19 @@ class DiaryEditorialCubit extends Cubit<DiaryEditorialState> {
                   ? lastUserSelectedLocation!.trim()
                   : null));
 
-      final CurrentWeatherReport report;
+      CurrentWeatherReport report;
       if (effectiveCity != null) {
-        report = await _weatherGateway.fetchWeatherByCity(effectiveCity);
-        lastUserSelectedLocation = report.locationName ?? effectiveCity;
+        try {
+          report = await _weatherGateway.fetchWeatherByCity(effectiveCity);
+          lastUserSelectedLocation = report.locationName ?? effectiveCity;
+        } catch (_) {
+          // 位置是「继承」来的（IP 反查得到的乡镇/区县名，例如 "Haidong Zhen"
+          // 或 "市南区"）时常无法被地理编码解析。此时不应直接报错，而是降级为
+          // IP/默认坐标自动定位；只有用户显式输入的城市才把错误抛给用户。
+          if (cityName != null) rethrow;
+          report = await _weatherGateway.fetchWeatherAuto();
+          lastUserSelectedLocation = report.locationName ?? effectiveCity;
+        }
       } else {
         report = await _weatherGateway.fetchWeatherAuto();
       }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_driver/driver_extension.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:note_english_flutter/app/service_locator.dart';
+import 'package:note_english_flutter/core/device/app_device_orientation.dart';
 import 'package:note_english_flutter/domain/models/diary/diary_entry.dart';
 import 'package:note_english_flutter/domain/models/diary/diary_metadata.dart';
 import 'package:note_english_flutter/domain/models/diary/weather_condition.dart';
@@ -13,6 +14,9 @@ import 'package:note_english_flutter/main.dart';
 void main() async {
   enableFlutterDriverExtension();
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await AppDeviceOrientation.lockPreferredOrientations();
+  } catch (_) {}
   try {
     await initializeDateFormatting('zh_CN', null);
   } catch (_) {}

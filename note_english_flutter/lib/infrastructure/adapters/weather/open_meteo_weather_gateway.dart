@@ -21,8 +21,10 @@ class OpenMeteoWeatherGateway implements IWeatherGateway {
     WmoWeatherMapper mapper = const WmoWeatherMapper(),
   })  : _dio = dio ??
             Dio(BaseOptions(
-              connectTimeout: const Duration(seconds: 5),
-              receiveTimeout: const Duration(seconds: 5),
+              // 实测国内移动网络到 Open-Meteo（德国）TLS 握手 2-3s、首字节
+              // 3-5s，5 秒窗口在弱网下会大面积误判超时，故放宽到 10 秒。
+              connectTimeout: const Duration(seconds: 10),
+              receiveTimeout: const Duration(seconds: 10),
             )),
         _mapper = mapper;
 
@@ -80,10 +82,18 @@ class OpenMeteoWeatherGateway implements IWeatherGateway {
       );
     } catch (e) {
       if (e is DioException) {
-        throw Exception('连接 Open-Meteo 天气服务超时或失败，请检查网络');
+        throw Exception('连接 Open-Meteo 天气服务超时或失败（${_describeDioError(e)}）');
       }
       rethrow;
     }
+  }
+
+  /// 把 Dio 的底层失败原因透出到用户可见的提示里，
+  /// 避免所有网络问题都被一句「请检查网络」掩盖，便于真机定位。
+  String _describeDioError(DioException e) {
+    final inner = e.error?.toString().trim() ?? '';
+    final detail = inner.isNotEmpty ? inner : (e.message?.trim() ?? '');
+    return detail.isEmpty ? e.type.name : '${e.type.name}: $detail';
   }
 
   @override
@@ -126,7 +136,7 @@ class OpenMeteoWeatherGateway implements IWeatherGateway {
       );
     } catch (e) {
       if (e is DioException) {
-        throw Exception('城市地理编码解析超时或失败: ${e.message}');
+        throw Exception('城市地理编码解析超时或失败（${_describeDioError(e)}）');
       }
       rethrow;
     }
@@ -138,7 +148,7 @@ class OpenMeteoWeatherGateway implements IWeatherGateway {
     try {
       final ipRes = await _dio.get(
         'https://freeipapi.com/api/json',
-        options: Options(receiveTimeout: const Duration(seconds: 3)),
+        options: Options(receiveTimeout: const Duration(seconds: 6)),
       );
       if (ipRes.statusCode == 200 && ipRes.data is Map<String, dynamic>) {
         final d = ipRes.data as Map<String, dynamic>;

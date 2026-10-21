@@ -7,6 +7,7 @@ import 'package:note_english_flutter/application/inquiry/inquiry_cubit.dart';
 import 'package:note_english_flutter/application/quick_polish/quick_polish_cubit.dart';
 import 'package:note_english_flutter/application/settings/ai_settings_cubit.dart';
 import 'package:note_english_flutter/app/service_locator.dart';
+import 'package:note_english_flutter/core/device/app_device_orientation.dart';
 import 'package:note_english_flutter/core/theme/app_theme_tokens.dart';
 import 'package:note_english_flutter/domain/gateways/ai_gateway.dart';
 import 'package:note_english_flutter/domain/gateways/quick_polish_platform_gateway.dart';
@@ -28,6 +29,11 @@ void main() async {
 }
 
 Future<void> startNoteEnglishApp() async {
+  // 锁定移动端屏幕方向为竖屏，不主动随手机横向握持切换为横屏 (Single Source of Truth)
+  try {
+    await AppDeviceOrientation.lockPreferredOrientations();
+  } catch (_) {}
+
   // 初始化多语言日期本地化
   try {
     await initializeDateFormatting('zh_CN', null);
