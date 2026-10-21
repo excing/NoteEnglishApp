@@ -1,6 +1,6 @@
 ## OtterJot (NoteEnglish) v0.0.5 发布说明
 
-欢迎使用 **OtterJot v0.0.5**！本次版本带来了重磅的 **深度思考模式（Deep Thinking）**、**上下文追问交互全流程进化** 以及 **领域核心服务统一重构**，在智能化程度、交互流畅性与工程架构稳固性上迈上了全新的台阶。
+欢迎使用 **OtterJot v0.0.5**！本次版本带来了重磅的 **深度思考模式（Deep Thinking）**、**上下文追问交互全流程进化** 以及 **领域核心服务统一重构**，并针对移动端（Android & iOS）进行了一系列极致的用户体验打磨，在智能化程度、交互流畅性与工程架构稳固性上迈上了全新的台阶。
 
 ---
 
@@ -21,17 +21,21 @@
 
 ---
 
-### 💎 架构重构与优化 (Architecture & Refactoring)
+### 💎 移动端体验优化与稳定性修复 (Mobile UX & Stability)
 
-1. **核心领域架构统一重构 (DDD Single Source of Truth)**：
-   - 抽象全新核心领域服务 `EditorialAnalysisService` 与执行模型 `EditorialExecutionResult`，将文本预检、AI 鉴权、地理位置与实时天气预检补齐、Prompt 装配、随笔持久化存盘及高价值生活语料沉淀完整收拢为单一信源链路。
-   - 应用内「呼叫水獭主编」与 macOS 状态栏「全局划词润色」全面复用统一主编生命周期，彻底废除冗余老旧的独立链路。
-2. **地理位置与天气预报高可用容错 (Weather Resilience)**：
+1. **移动设备屏幕方向锁定为竖屏 (Portrait Orientation Lock)**：
+   - 解决手机端持握或躺卧时界面意外翻转横屏的问题，强制保持竖屏专注书写排版。
+   - 建立单一信源 `AppDeviceOrientation`并在入口层强制锁定 Preferred Orientations，同时在 Android (`MainActivity`) 与 iOS (`Info.plist`) 双端完成系统级限制。
+2. **Android 输入法与候选词联想体验恢复 (IME & Typing UX)**：
+   - 修复此前因关闭输入建议导致搜狗/百度/Gboard 等第三方输入法将编辑区误判为「密码安全键盘」的问题，恢复输入法候选词与联想能力，保留中英文顺畅输入与不强制纠错的沉浸手感。
+3. **Android Release 网络通信与权限补全**：
+   - 在 Android Release 清单中补全 `INTERNET` 权限声明，确保正式发布包中实时天气与 AI 请求畅通无阻。
+4. **地理位置与天气预报高可用容错 (Weather Resilience)**：
    - 基于 FreeIPAPI 实现无感知精确定位当前城市并拉取天气，在离线或公共接口波动时平滑降级至默认安全坐标，保证写作体验不中断。
-3. **视觉层次与字体字阶精修 (App Typography)**：
+5. **视觉层次与字体字阶精修 (App Typography)**：
    - 重塑全局字阶规范（`AppTypography`），大幅增强了标题、正文文本以及微注释之间的视觉节奏与阅读舒适感。
-4. **全量自动化测试与工程质量保证**：
-   - 测试套件全量扩充（涵盖 `EditorialAnalysisService`、天气网关、母语解析、思维链、追问状态机及 UI 组件），全量测试 100% 通过，代码静态分析 0 警告 0 错误。
+6. **全量自动化测试与工程质量保证**：
+   - 测试套件全量扩充（涵盖设备方向配置、`EditorialAnalysisService`、天气网关、母语解析、思维链、追问状态机及 UI 组件），全量测试 100% 通过，代码静态分析 0 警告 0 错误。
 
 ---
 
